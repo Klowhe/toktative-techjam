@@ -122,7 +122,7 @@ def formulate_response(top_results, query_text):
 
 # ---------------------- Example Usage ----------------------
 if __name__ == "__main__":
-    query_text = "Name 3 regulations brought forth by the EU Digital Services Act."
+    query_text = "My feature will Enable users to reshare stories from others, with auto-expiry after 48 hours. This feature logs resharing attempts with EchoTrace and stores activity under BB. Is this in violation of EU regulations regarding user data and privacy?"
     source_file = "eu_dsa.pdf"
 
     try:
