@@ -11,6 +11,7 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 # ---------------------- Ollama Settings ----------------------
 OLLAMA_URL = "http://127.0.0.1:11434/api/embeddings"  # Ollama local embed endpoint
 OLLAMA_MODEL = "mxbai-embed-large"           # Replace with your embedding model
+OLLAMA_CHAT_MODEL = "llama3.1:8b"                       # Your chat model for generating responses
 
 # ---------------------- Initialize Qdrant ----------------------
 qdrant_client = QdrantClient(
@@ -40,6 +41,19 @@ def query_qdrant(embedding: list, collection_name: str, top_k: int = 5):
         limit=3
     )
     return results
+
+def generate_response(context_text: str, question: str) -> str:
+    payload = {
+        "model": OLLAMA_CHAT_MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant that answers questions based on provided context."},
+            {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {question}"}
+        ],
+        "stream": False
+    }
+    response = requests.post("http://127.0.0.1:11434/api/chat", json=payload)
+    response.raise_for_status()
+    return response.json()["message"]["content"]
 
 # Map source file to collection names
 SOURCE_COLLECTION_MAP = {
@@ -89,8 +103,9 @@ def extract_text_from_results(top_results):
     return combined_text
 
 
+
 # ---------------------- Formulate response ----------------------
-def formulate_response(top_results):
+def formulate_response(top_results, query_text):
     """
     Combine the text chunks and optionally summarize for user response.
     """
@@ -101,10 +116,9 @@ def formulate_response(top_results):
     # Simple concatenation for now
     combined_text = "\n\n".join(text_chunks)
 
-    # Optional: You could run summarization here with LLM if desired
-    # e.g., call Ollama model to summarize combined_text
-
-    return combined_text
+    # 4. Generate response using Ollama chat model
+    response = generate_response(combined_text, query_text)
+    return response
 
 # ---------------------- Example Usage ----------------------
 if __name__ == "__main__":
@@ -114,7 +128,7 @@ if __name__ == "__main__":
     try:
         top_results = retrieve_top_documents(query_text, source_file, top_k=3)
         
-        response_text = formulate_response(top_results)
+        response_text = formulate_response(top_results, query_text)
         print("\n--- Formulated Response ---")
         print(response_text)
 
