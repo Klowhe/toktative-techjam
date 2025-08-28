@@ -2,9 +2,12 @@ import json
 import requests
 from api.qdrant_api import init_qdrant
 from api.ollama_api import get_embedding
+from qdrant_client.http.models import PointStruct, VectorParams
+from config.collections import SOURCE_COLLECTION_MAP
 import os
-from dotenv import load_dotenv
 import uuid
+
+EMBED_DIM = 1024  # Must match your Ollama embedding model output dimension
 
 # ---------------------- Load Chunks ----------------------
 # with open("chunks_output.json", "r", encoding="utf-8") as f:
@@ -14,16 +17,6 @@ chunks_file = os.path.join(data_folder, "chunks_output.json")
 
 with open(chunks_file, "r", encoding="utf-8") as f:
     chunks = json.load(f) 
-
-# ---------------------- Source to Collection Mapping ----------------------
-SOURCE_COLLECTION_MAP = {
-    "eu_dsa.pdf": "eu_regulation",
-    "fl_bill.pdf": "fl_regulation",
-    "utah_regulation_act.pdf": "ut_regulation",
-    "ncmec.pdf": "ncmec_regulation",
-    "ca_poksmaa.pdf": "ca_regulation"
-}
-
 
 # ---------------------- Upload Chunks ----------------------
 qdrant_client = init_qdrant()
