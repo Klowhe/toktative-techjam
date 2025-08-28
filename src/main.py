@@ -1,59 +1,11 @@
 import os
 import requests
-from qdrant_client import QdrantClient
-from dotenv import load_dotenv
-
-# ---------------------- Load Environment ----------------------
-load_dotenv()
-QDRANT_ENDPOINT = os.getenv("QDRANT_ENDPOINT")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-
-# ---------------------- Ollama Settings ----------------------
-OLLAMA_URL = "http://127.0.0.1:11434/api/embeddings"  # Ollama local embed endpoint
-OLLAMA_MODEL = "mxbai-embed-large"           # Replace with your embedding model
-OLLAMA_CHAT_MODEL = "llama3.1:8b"                       # Your chat model for generating responses
+from api.qdrant_api import init_qdrant, query_qdrant
+from api.ollama_api import get_embedding, generate_response
+# from dotenv import load_dotenv
 
 # ---------------------- Initialize Qdrant ----------------------
-qdrant_client = QdrantClient(
-    url=QDRANT_ENDPOINT,
-    api_key=QDRANT_API_KEY
-)
-
-# ---------------------- Helper Functions ----------------------
-
-def get_embedding(text):
-    """Get embedding from local Ollama server via HTTP."""
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": text
-    }
-    response = requests.post(f"{OLLAMA_URL}", json=payload)
-    response.raise_for_status()
-    return response.json()["embedding"]
-
-def query_qdrant(embedding: list, collection_name: str, top_k: int = 5):
-    """
-    Query Qdrant collection for top-k most similar points using query_points.
-    """
-    results = qdrant_client.search(
-        collection_name=collection_name,
-        query_vector=embedding,
-        limit=3
-    )
-    return results
-
-def generate_response(context_text: str, question: str) -> str:
-    payload = {
-        "model": OLLAMA_CHAT_MODEL,
-        "messages": [
-            {"role": "system", "content": "You are a helpful assistant that answers questions based on provided context."},
-            {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {question}"}
-        ],
-        "stream": False
-    }
-    response = requests.post("http://127.0.0.1:11434/api/chat", json=payload)
-    response.raise_for_status()
-    return response.json()["message"]["content"]
+qdrant_client = init_qdrant()
 
 # Map source file to collection names
 SOURCE_COLLECTION_MAP = {
@@ -78,7 +30,7 @@ def retrieve_top_documents(query_text: str, source_file: str, top_k: int = 5):
     embedding = get_embedding(query_text)
 
     # 2. Query Qdrant
-    top_docs = query_qdrant(embedding, collection_name=collection_name, top_k=top_k)
+    top_docs = query_qdrant(qdrant_client, embedding, collection_name=collection_name, top_k=top_k)
 
     # 3. Format results
     results = []
