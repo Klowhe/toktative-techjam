@@ -2,19 +2,11 @@ import os
 import requests
 from api.qdrant_api import init_qdrant, query_qdrant
 from api.ollama_api import get_embedding, generate_response
+from config.collections import SOURCE_COLLECTION_MAP
 # from dotenv import load_dotenv
 
 # ---------------------- Initialize Qdrant ----------------------
 qdrant_client = init_qdrant()
-
-# Map source file to collection names
-SOURCE_COLLECTION_MAP = {
-    "eu_dsa.pdf": "eu_regulation",
-    "fl_bill.pdf": "fl_regulation",
-    "utah_regulation_act.pdf": "ut_regulation",
-    "ncmec.pdf": "ncmec_regulation",
-    "ca_poksmaa.pdf": "ca_regulation"
-}
 
 # ---------------------- Main Query Loop ----------------------
 
