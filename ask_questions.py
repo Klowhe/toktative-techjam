@@ -112,11 +112,11 @@ if __name__ == "__main__":
     source_file = "eu_dsa.pdf"
 
     try:
-        top_results = retrieve_top_documents(query_text, source_file, top_k=5)
-        for i, res in enumerate(top_results, 1):
-            print(f"\n--- Result {i} ---")
-            print("Score:", res["score"])
-            print("Metadata:", res["metadata"])
-            print(res)
+        top_results = retrieve_top_documents(query_text, source_file, top_k=3)
+        
+        response_text = formulate_response(top_results)
+        print("\n--- Formulated Response ---")
+        print(response_text)
+
     except Exception as e:
         print("Error:", e)
