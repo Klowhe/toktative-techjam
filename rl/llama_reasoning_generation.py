@@ -59,56 +59,103 @@ def chat_with_ollama(messages: list) -> str:
 
 # ---------------------- Source Mapping ----------------------
 SOURCE_COLLECTION_MAP = {
-    "eu_dsa.pdf": "eu_regulation",
-    "fl_bill.pdf": "fl_regulation",
-    "utah_regulation_act.pdf": "ut_regulation",
-    "ncmec.pdf": "ncmec_regulation",
-    "ca_poksmaa.pdf": "ca_regulation"
+    "EU": "eu_regulation",
+    "FL": "fl_regulation",
+    "UT": "ut_regulation",
+    "US": "ncmec_regulation",
+    "CA": "ca_regulation"
 }
 
 # ---------------------- Pipeline Steps ----------------------
 
+# def extract_entities(feature_name: str, feature_description: str):
+#     """Extract structured entities from feature using LLM."""
+#     prompt = f"""
+#     Extract the following entities from this feature:
+#     - location (jurisdiction, state, or region)
+#     - age (any mentioned age group or restriction)
+#     - keywords (important technical / policy terms)
+#     - related_regulations (if any obvious law/regulation is mentioned)
+
+#     Respond strictly in JSON format.
+
+#     Feature Name: {feature_name}
+#     Feature Description: {feature_description}
+#     """
+#     messages = [{"role": "system", "content": "You are an expert compliance entity extractor."},
+#                 {"role": "user", "content": prompt}]
+#     return chat_with_ollama(messages)
+
 def extract_entities(feature_name: str, feature_description: str):
     """Extract structured entities from feature using LLM."""
     prompt = f"""
-    Extract the following entities from this feature:
-    - location (jurisdiction, state, or region)
-    - age (any mentioned age group or restriction)
-    - keywords (important technical / policy terms)
-    - related_regulations (if any obvious law/regulation is mentioned)
+    Extract the following entities from this feature and respond strictly in JSON.
+    Use exactly this schema (do not add extra nesting or different keys):
 
-    Respond strictly in JSON format.
+    {{
+      "location": "string (jurisdiction, state, or region abbreviated name only, e.g. 'UT', 'CA', 'FL', 'US', 'EU')",
+      "age": ["list of strings describing any age groups or restrictions, e.g. 'under 18', 'minors'"],
+      "keywords": ["list of important technical or policy terms"],
+      "related_regulations": ["list of regulation or law names, if mentioned"]
+    }}
 
     Feature Name: {feature_name}
     Feature Description: {feature_description}
+
+    Rules:
+    - Always provide `location` as a single normalized string (not an object or list).
+    - If multiple locations are mentioned, choose the most relevant one.
+    - Do not invent extra keys or change the schema.
+    - If no value is found for a field, return an empty string ("") or empty list ([]).
     """
-    messages = [{"role": "system", "content": "You are an expert compliance entity extractor."},
-                {"role": "user", "content": prompt}]
+    messages = [
+        {"role": "system", "content": "You are an expert compliance entity extractor."},
+        {"role": "user", "content": prompt}
+    ]
     return chat_with_ollama(messages)
 
-
-def retrieve_best_regulation_text(feature_description: str, top_k: int = 3):
+def retrieve_best_regulation_text(feature_description, entities, top_k):
     """
-    Search all collections in SOURCE_COLLECTION_MAP and return the best matching law(s) and relevant text.
-    Returns a list of dicts: [{"collection": ..., "source_file": ..., "texts": [...]}]
+    Search only the relevant collection (based on entities['location']) and 
+    return top-k matching texts.
     """
-    results = []
     embedding = get_embedding(feature_description)
-    
-    #This approach searches for top-k documents for every collection. Do we want to continue with this approach? Very time consuming
+
+    target_collection = None
+    target_source = None
     for source_file, collection_name in SOURCE_COLLECTION_MAP.items():
-        top_docs = query_qdrant(embedding, collection_name, top_k=top_k)
-        texts = [doc.payload.get("text", "") for doc in top_docs if "text" in doc.payload]
-        if texts:
-            results.append({
-                "collection": collection_name,
-                "source_file": source_file,
-                "texts": texts,
-                "score": top_docs[0].score if top_docs else 0
-            })
-    # Sort by score descending, keep only those with non-empty texts
-    results = sorted([r for r in results if r["texts"]], key=lambda x: x["score"], reverse=True)
-    return results
+        if entities.get("location", "").lower() in source_file.lower():
+            target_collection = collection_name
+            target_source = source_file
+            break
+
+    if not target_collection:
+        # fallback: pick all, but keep only the best collection (like before)
+        results = []
+        for source_file, collection_name in SOURCE_COLLECTION_MAP.items():
+            top_docs = query_qdrant(embedding, collection_name, top_k=top_k)
+            texts = [doc.payload.get("text", "") for doc in top_docs if "text" in doc.payload]
+            if texts:
+                results.append({
+                    "collection": collection_name,
+                    "source_file": source_file,
+                    "texts": texts,
+                    "score": top_docs[0].score if top_docs else 0
+                })
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+        return results[:1]   # only keep the best collection
+
+    # if we know the right collection, query only it
+    top_docs = query_qdrant(embedding, target_collection, top_k=top_k)
+    texts = [doc.payload.get("text", "") for doc in top_docs if "text" in doc.payload]
+
+    return [{
+        "collection": target_collection,
+        "source_file": target_source,
+        "texts": texts,
+        "score": top_docs[0].score if top_docs else 0
+    }]
+
 
 def classify_stage(entities: str, regulation_context: str):
     """
@@ -145,33 +192,95 @@ def classify_stage(entities: str, regulation_context: str):
     return chat_with_ollama(messages)
 
 # --------------------------------------------
+# dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
+# df = pd.read_excel(dataset_file_path)
+# reasoning_list = []
+# regulation_list = []
+# if __name__ == "__main__":
+#     for row in df.itertuples():
+#         feature = {
+#             "feature_name": row.feature_name,
+#             "feature_description": row.feature_description
+#         }
+#         try:
+#             # Step 1: Extract entities
+#             entities = extract_entities(feature["feature_name"], feature["feature_description"])
+#             print("\n--- Extracted Entities ---")
+#             print(entities)
+
+#             # Step 2: Search all laws for best match
+#             regulation_results = retrieve_best_regulation_text(feature["feature_description"], top_k=3)
+#             if not regulation_results:
+#                 print("\n--- Regulation Context ---")
+#                 print("No relevant regulation found.")
+#                 regulation_context = ""
+#                 related_regulation = ""
+#             else:
+#                 best = regulation_results[0]
+#                 regulation_context = "\n\n".join(best["texts"])
+#                 related_regulation = best["source_file"]
+#                 print("\n--- Regulation Context ---")
+#                 print(f"Matched Law: {related_regulation}")
+#                 print(regulation_context[:1000], "...")  # print preview
+
+#             # Step 3: Classification and Reasoning(Ollama)
+#             classification = classify_stage(entities, regulation_context)
+#             print("\n--- Classification (Ollama) ---")
+#             print(classification)
+#             try:
+#                 ollama_result = json.loads(classification)
+#                 if isinstance(ollama_result, list):
+#                     final_result = ollama_result[0]  # take first item
+#                 else:
+#                     final_result = ollama_result  # it's already a single object
+#             except Exception:
+#                 final_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
+#             reasoning_list.extend([final_result['reasoning']])
+#             regulation_list.extend([final_result['related_regulation']])
+#         except Exception as e:
+#             print("Error:", e)
+#             reasoning_list.append("Error during reasoning")
+#             regulation_list.append("Error during reasoning")
+    
+#     df['ollama_reasoning'] = reasoning_list
+#     df['related_regulation'] = regulation_list
+#     output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
+#     df.to_excel(output_path, index=False)
+#     print(f"Saved results to {output_path}")
+
+# ---------------------- Example Usage ----------------------
 dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
 df = pd.read_excel(dataset_file_path)
 reasoning_list = []
 regulation_list = []
+
 if __name__ == "__main__":
     for row in df.itertuples():
         feature = {
             "feature_name": row.feature_name,
             "feature_description": row.feature_description
         }
+
         try:
             # Step 1: Extract entities
-            entities = extract_entities(feature["feature_name"], feature["feature_description"])
+            entities = json.loads(extract_entities(feature["feature_name"], feature["feature_description"]))
             print("\n--- Extracted Entities ---")
             print(entities)
 
             # Step 2: Search all laws for best match
-            regulation_results = retrieve_best_regulation_text(feature["feature_description"], top_k=3)
+            regulation_results = retrieve_best_regulation_text(feature["feature_description"], entities, top_k=3)
             if not regulation_results:
                 print("\n--- Regulation Context ---")
                 print("No relevant regulation found.")
                 regulation_context = ""
                 related_regulation = ""
             else:
-                best = regulation_results[0]
-                regulation_context = "\n\n".join(best["texts"])
-                related_regulation = best["source_file"]
+                # combine top 3 collections’ texts
+                regulation_context = "\n\n".join(
+                    "\n\n".join(r["texts"]) for r in regulation_results
+                )
+                related_regulation = ", ".join(r["source_file"] for r in regulation_results)
+                            
                 print("\n--- Regulation Context ---")
                 print(f"Matched Law: {related_regulation}")
                 print(regulation_context[:1000], "...")  # print preview
