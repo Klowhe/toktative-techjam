@@ -277,6 +277,8 @@ if __name__ == "__main__":
             # Step 4: Classification (Gemini)
             gemini_result = classify_stage_gemini(entities, regulation_context)
             gemini_cls = gemini_result.get("classification", "")
+            if gemini_cls == "":
+                print(f"Gemini classification is empty for feature '{feature_name}'. Reasoning: {gemini_result.get('reasoning', '')}")
 
             # Step 5: Reward calculation
             reward = compute_reward(ollama_result, gemini_result)
