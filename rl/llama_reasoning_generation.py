@@ -66,6 +66,31 @@ SOURCE_COLLECTION_MAP = {
     "CA": "ca_regulation"
 }
 
+
+TERMINOLOGY_DICT = """
+Terminology Dictionary:
+- NR = Not recommended
+- PF = Personalized feed
+- GH = Geo-handler; a module responsible for routing features based on user region
+- CDS = Compliance Detection System
+- DRT = Data retention threshold; duration for which logs can be stored
+- LCP = Local compliance policy
+- Redline = Flag for legal review (different from its traditional business use for 'financial loss')
+- Softblock = A user-level limitation applied silently without notifications
+- Spanner = A synthetic name for a rule engine (not to be confused with Google Spanner)
+- ShadowMode = Deploy feature in non-user-impact way to collect analytics only
+- T5 = Tier 5 sensitivity data; more critical than T1‚ÄìT4 in this internal taxonomy
+- ASL = Age-sensitive logic
+- Glow = A compliance-flagging status, internally used to indicate geo-based alerts
+- NSP = Non-shareable policy (content should not be shared externally)
+- Jellybean = Feature name for internal parental control system
+- EchoTrace = Log tracing mode to verify compliance routing
+- BB = Baseline Behavior; standard user behavior used for anomaly detection
+- Snowcap = A synthetic codename for the child safety policy framework
+- FR = Feature rollout status
+- IMT = Internal monitoring trigger
+"""
+
 # ---------------------- Pipeline Steps ----------------------
 
 def extract_entities(feature_name: str, feature_description: str):
@@ -155,17 +180,23 @@ def classify_stage(entities: str, regulation_context: str):
     Relevant regulation text:
     {regulation_context}
 
+    Here is a terminology dictionary:
+    {TERMINOLOGY_DICT}
+
     Based on this information:
-    1. Answer "Yes" if required by law/regulation, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
-    2. Provide a short reasoning (1-2 sentences).
-    3. If any related regulation/article is relevant, mention it concisely.
+    1. Reference the terminology dictionary for technical terminologies and abbreviations.
+    2. Answer "Yes" if feature required by law/regulation in specific regions, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
+    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions.
+    4. If any related regulation/article is relevant, mention it concisely, otherwise use "None".
 
     Based on all input, respond strictly in JSON **with exactly these keys**:
     "classification": "Yes" | "No" | "Maybe",
     "reasoning": "1-2 sentence reasoning",
     "related_regulation": "main law or article name"
-     
-    Do not create lists or nested objects. Combine all reasoning into one string.
+
+    Rules:
+    - Do not create lists or nested objects. Combine all reasoning into one string.
+    - Do not infer regulatory requirements if none are explicitly mentioned in the feature description or extracted entities.
     """
     messages = [
         {"role": "system", "content": "You are a compliance classifier."},
@@ -174,7 +205,8 @@ def classify_stage(entities: str, regulation_context: str):
     return chat_with_ollama(messages)
 
 # ---------------------- Example Usage ----------------------
-dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
+# dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
+dataset_file_path = "/Users/chery/Downloads/features_dataset.xlsx"
 df = pd.read_excel(dataset_file_path)
 reasoning_list = []
 regulation_list = []
@@ -231,6 +263,8 @@ if __name__ == "__main__":
     
     df['ollama_reasoning'] = reasoning_list
     df['related_regulation'] = regulation_list
-    output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
+    # output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
+    output_path = "/Users/chery/Downloads/features_dataset_with_ollama_reasoning.xlsx"
+
     df.to_excel(output_path, index=False)
     print(f"Saved results to {output_path}")
