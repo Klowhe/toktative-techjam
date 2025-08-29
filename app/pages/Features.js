@@ -185,13 +185,10 @@ export function Features(analyzedFeature = null) {
                           <h4 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Available Actions</h4>
                           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
                             <button onclick="sendToEmail('${feature.id}')" style="padding: 0.75rem 1.25rem; background: #009995; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
-                              Send to My Email
+                              Send to Email
                             </button>
                             <button onclick="exportDetails('${feature.id}')" style="padding: 0.75rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
                               Export Details
-                            </button>
-                            <button onclick="viewRawAnalysis('${feature.id}')" style="padding: 0.75rem 1.25rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
-                              View Full Analysis
                             </button>
                           </div>
                         </div>

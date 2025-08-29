@@ -19,6 +19,11 @@ function handleRoute() {
   const path = window.location.pathname;
   const root = document.getElementById('root');
   
+  if (!root) {
+    console.error('Root element not found!');
+    return;
+  }
+  
   if (!currentUser && path !== '/login' && path !== '/') {
     // Redirect to login if not authenticated
     navigateTo('/login');
@@ -102,6 +107,8 @@ function setupUploadHandler() {
           if (result.success) {
             // Store the analyzed feature and metadata globally
             analyzedFeature = result.feature;
+            window.analyzedFeature = result.feature;
+            window.rawAnalysis = result.raw_analysis;
             window.lastAnalysisMetadata = {
               raw_analysis: result.raw_analysis,
               retrieved_documents: result.retrieved_documents,
@@ -149,46 +156,261 @@ function parseDocument() {
   showToast('Parsing document...', 'info');
   console.log('Parsing document:', file.name);
   
-  // Simulate document parsing
+  // Create FormData to send file to backend
+  const formData = new FormData();
+  formData.append('document', file);
+  
+  // Call backend parse endpoint
+  fetch('http://localhost:5001/api/parse', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Document parsed successfully!', 'success');
+      
+      // Fill the form with extracted data
+  fillFormFields(data.extracted_data);
+  
+  // Show the parsed info notification
+  document.getElementById('parsed-info').style.display = 'block';
+} else {
+  showToast(data.error || 'Failed to parse document', 'error');
+}
+})
+.catch(error => {
+console.error('Error parsing document:', error);
+showToast('Error parsing document. Please try manual entry.', 'error');
+});
+}
+
+// Feature action functions
+function sendToEmail(featureId) {
+  const feature = window.analyzedFeature;
+  if (!feature) {
+    showToast('No feature data available', 'error');
+    return;
+  }
+  
+  // Create modal to ask for email address
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `;
+  
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+  `;
+  
+  modalContent.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3 style="margin: 0; color: #1f2937;">Send Analysis Report</h3>
+      <button onclick="this.closest('.email-modal').remove()" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer;">Cancel</button>
+    </div>
+    <div style="margin-bottom: 1.5rem;">
+      <p style="color: #6b7280; margin-bottom: 1rem;">Enter the email address where you want to send the analysis report for "${feature.title}":</p>
+      <input type="email" id="email-input" placeholder="user@example.com" required 
+             style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem;" />
+    </div>
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+      <button onclick="this.closest('.email-modal').remove()" style="padding: 0.75rem 1.5rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+      <button onclick="sendEmailReport()" style="padding: 0.75rem 1.5rem; background: #009995; color: white; border: none; border-radius: 6px; cursor: pointer;">Send Email</button>
+    </div>
+  `;
+  
+  modal.className = 'email-modal';
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  // Focus on email input
   setTimeout(() => {
-    showToast('Document parsed successfully!', 'success');
-    
-    // Simulate extracted data - in real implementation, this would come from document parsing
-    const extractedData = {
-      title: 'Smart Content Filter for Global Markets',
-      description: 'An AI-powered content filtering system designed to automatically detect and moderate inappropriate content across different geographical regions while respecting local cultural and regulatory differences.',
-      content: `Feature Title: Smart Content Filter for Global Markets
+    document.getElementById('email-input').focus();
+  }, 100);
+  
+  // Close modal on outside click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+  
+  // Handle Enter key
+  document.getElementById('email-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendEmailReport();
+    }
+  });
+}
 
-Description: An AI-powered content filtering system designed to automatically detect and moderate inappropriate content across different geographical regions while respecting local cultural and regulatory differences.
+function sendEmailReport() {
+  const emailInput = document.getElementById('email-input');
+  const email = emailInput.value.trim();
+  
+  if (!email) {
+    showToast('Please enter an email address', 'error');
+    return;
+  }
+  
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showToast('Please enter a valid email address', 'error');
+    return;
+  }
+  
+  const feature = window.analyzedFeature;
+  const modal = document.querySelector('.email-modal');
+  
+  // Show loading state
+  modal.querySelector('button[onclick="sendEmailReport()"]').textContent = 'Sending...';
+  modal.querySelector('button[onclick="sendEmailReport()"]').disabled = true;
+  
+  // Prepare email data
+  const emailData = {
+    to: email,
+    subject: `Regulatory Analysis Report: ${feature.title}`,
+    feature: feature,
+    raw_analysis: window.rawAnalysis
+  };
+  
+  // Send email via backend
+  fetch('http://localhost:5001/api/send-email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(emailData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(`Analysis report sent successfully to ${email}`, 'success');
+      modal.remove();
+    } else {
+      throw new Error(data.error || 'Failed to send email');
+    }
+  })
+  .catch(error => {
+    console.error('Error sending email:', error);
+    showToast(`Failed to send email: ${error.message}`, 'error');
+    // Reset button state
+    modal.querySelector('button[onclick="sendEmailReport()"]').textContent = 'Send Email';
+    modal.querySelector('button[onclick="sendEmailReport()"]').disabled = false;
+  });
+}
 
-Technical Requirements:
-- Real-time content analysis using machine learning models
-- Support for 15+ languages and regional dialects
-- Configurable sensitivity levels per region
-- Integration with existing moderation workflows
-- Performance target: <200ms response time
+function exportDetails(featureId) {
+  const feature = window.analyzedFeature;
+  if (!feature) {
+    showToast('No feature data available', 'error');
+    return;
+  }
+  
+  // Create CSV content
+  const csvContent = [
+    ['Field', 'Value'],
+    ['Feature Title', feature.title],
+    ['Description', feature.description],
+    ['Regulatory Flag', feature.flag],
+    ['Confidence', `${Math.round(feature.confidence * 100)}%`],
+    ['Age Group', feature.age],
+    ['Risk Level', feature.risk_level],
+    ['Analysis Date', new Date(feature.created_at).toLocaleString()],
+    ['Reasoning', feature.reasoning],
+    ['Regulations', feature.regulations?.join('; ') || 'None'],
+    ['Business Impact', feature.business_impact],
+    ['Technical Complexity', feature.technical_complexity],
+    ['Rollout Timeline', feature.rollout_timeline],
+    ['Stakeholders', feature.stakeholders?.join('; ') || 'None'],
+    ['Regions Affected', feature.regions_affected?.join('; ') || 'None']
+  ].map(row => row.map(field => `"${field.replace(/"/g, '""')}"`).join(',')).join('\n');
+  
+  // Create and download file
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `regulatory-analysis-${feature.title.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+  
+  showToast('Analysis details exported as CSV', 'success');
+}
 
-Implementation Details:
-- Deploy region-specific ML models
-- Implement geo-location based rule sets
-- Create admin dashboard for configuration
-- Add user appeal mechanisms
-- Ensure GDPR compliance for EU users
-
-Geographical Considerations:
-- EU: Strict privacy requirements under GDPR
-- US: First Amendment considerations
-- APAC: Varied regulatory frameworks per country
-- Content policies must adapt to local laws`
-    };
-    
-    // Fill the form with extracted data
-    fillFormFields(extractedData);
-    
-    // Show the parsed info notification
-    document.getElementById('parsed-info').style.display = 'block';
-    
-  }, 2000);
+function viewRawAnalysis(featureId) {
+  const feature = window.analyzedFeature;
+  const rawAnalysis = window.rawAnalysis;
+  
+  if (!rawAnalysis) {
+    showToast('No raw analysis data available', 'error');
+    return;
+  }
+  
+  // Create modal for raw analysis
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `;
+  
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
+    position: relative;
+  `;
+  
+  modalContent.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3 style="margin: 0; color: #1f2937;">Full AI Analysis Report</h3>
+      <button onclick="this.closest('.modal').remove()" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer;">Close</button>
+    </div>
+    <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; border: 1px solid #e5e7eb;">
+      <h4 style="margin: 0 0 1rem 0; color: #374151;">Feature: ${feature?.title || 'Unknown'}</h4>
+      <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; line-height: 1.5; color: #1f2937; margin: 0;">${rawAnalysis}</pre>
+    </div>
+  `;
+  
+  modal.className = 'modal';
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  // Close modal on outside click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
 }
 
 function fillFormFields(data) {
@@ -312,56 +534,6 @@ function toggleFeatureDetails(featureId) {
   }
 }
 
-function sendToEmail(featureId) {
-  showToast('Feature details will be sent to your email address.', 'success');
-  // Here you would implement actual email sending functionality
-}
-
-function exportDetails(featureId) {
-  showToast('Feature details exported successfully.', 'success');
-  // Here you would implement actual export functionality
-}
-
-function viewRawAnalysis(featureId) {
-  const rawAnalysis = window.lastAnalysisMetadata?.raw_analysis;
-  if (rawAnalysis) {
-    // Create a modal to display the raw analysis
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-      background: rgba(0,0,0,0.5); display: flex; align-items: center; 
-      justify-content: center; z-index: 1000; padding: 2rem;
-    `;
-    
-    modal.innerHTML = `
-      <div style="background: white; border-radius: 8px; max-width: 800px; max-height: 80vh; width: 100%; overflow: hidden; display: flex; flex-direction: column;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: between; align-items: center;">
-          <h3 style="margin: 0; color: #1f2937; font-size: 1.25rem;">Full AI Analysis</h3>
-          <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; padding: 0; margin-left: auto;">×</button>
-        </div>
-        <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
-          <pre style="white-space: pre-wrap; font-family: system-ui; line-height: 1.6; color: #374151; margin: 0;">${rawAnalysis}</pre>
-        </div>
-        <div style="padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end;">
-          <button onclick="this.closest('.modal').remove()" style="padding: 0.5rem 1rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
-        </div>
-      </div>
-    `;
-    
-    modal.className = 'modal';
-    document.body.appendChild(modal);
-    
-    // Close modal when clicking outside
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.remove();
-      }
-    });
-  } else {
-    showToast('No raw analysis available', 'error');
-  }
-}
-
 // Make functions global for onclick handlers
 window.navigateTo = navigateTo;
 window.logout = logout;
@@ -370,8 +542,8 @@ window.handleFileUpload = handleFileUpload;
 window.parseDocument = parseDocument;
 window.toggleFeatureDetails = toggleFeatureDetails;
 window.sendToEmail = sendToEmail;
+window.sendEmailReport = sendEmailReport;
 window.exportDetails = exportDetails;
-window.viewRawAnalysis = viewRawAnalysis;
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded');
