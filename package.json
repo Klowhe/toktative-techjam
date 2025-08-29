@@ -1,0 +1,17 @@
+{
+  "name": "geo-reg-compliance-classifier",
+  "version": "1.0.0",
+  "description": "TikTok-style Geo-Reg Compliance Classifier",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lynx": "^0.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
