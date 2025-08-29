@@ -2,6 +2,8 @@ import os
 import requests
 from qdrant_client import QdrantClient
 from dotenv import load_dotenv
+import google.generativeai as genai
+import json
 
 # ---------------------- Load Environment ----------------------
 load_dotenv()
@@ -125,7 +127,7 @@ def classify_stage(entities: str, regulation_context: str):
     {regulation_context}
 
     Based on this information:
-    1. Is there a clear legal obligation for this feature? Answer "Yes" if required by law/regulation, "No" if it's only a business decision, or "Maybe" if unclear and needs human review.
+    1. Answer "Yes" if required by law/regulation, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
     2. Provide a short reasoning (1-2 sentences).
     3. If any related regulation/article is relevant, mention it concisely.
 
@@ -137,11 +139,71 @@ def classify_stage(entities: str, regulation_context: str):
     ]
     return chat_with_ollama(messages)
 
+
+
+def classify_stage_gemini(entities: str, regulation_context: str):
+    """
+    Use Gemini to classify feature as legal obligation/business-only/unclear.
+    Output JSON with keys: classification, reasoning, related_regulation.
+    """
+    genai.configure(api_key=GEMINI_KEY)
+    try:
+        model_name = "models/gemini-2.0-flash-exp"
+        model = genai.GenerativeModel(model_name)
+        prompt = f"""
+        Entities extracted:
+        {entities}
+
+        Relevant regulation text:
+        {regulation_context}
+
+        Based on this information:
+        1. Answer "Yes" if required by law/regulation, "No" if it's only a business decision, or "Maybe" if it does not state intention to develop this feature and needs human review.
+        2. Provide a short reasoning (1-2 sentences).
+        3. If any related regulation/article is relevant, mention it concisely.
+
+        Respond strictly in JSON format with keys: classification ("Yes", "No", "Maybe"), reasoning, related_regulation.
+        """
+        response = model.generate_content(prompt)
+       
+        # --- Clean Gemini output before parsing ---
+        text = response.text.strip()
+        # Remove code block markers if present
+        if text.startswith("```"):
+            # Remove first line (e.g., ```json) and last line (```)
+            lines = text.splitlines()
+            # Remove lines starting/ending with ```
+            lines = [line for line in lines if not line.strip().startswith("```") and not line.strip().endswith("```")]
+            text = "\n".join(lines).strip()
+        try:
+            return json.loads(text)
+        except Exception:
+            return {"classification": "Maybe", "reasoning": "Gemini output not valid JSON", "related_regulation": ""}
+    except Exception as e:
+        print("Gemini model error:", e)
+        return {"classification": "Maybe", "reasoning": "Gemini model error", "related_regulation": ""}
+
+def compute_reward(ollama_result, gemini_result):
+    """
+    Compare Ollama and Gemini classification and assign reward.
+    """
+    ollama_cls = ollama_result.get("classification", "").strip().lower()
+    gemini_cls = gemini_result.get("classification", "").strip().lower()
+    print(f"DEBUG: ollama_cls='{ollama_cls}', gemini_cls='{gemini_cls}'")  # <--- Add this line
+    if ollama_cls == gemini_cls:
+        return 5  # positive reward
+    elif ollama_cls == "maybe" and gemini_cls in ("yes", "no"):
+        return -1  # unsure, less penalty
+    elif gemini_cls == "maybe" and ollama_cls in ("yes", "no"):
+        return -1
+    else:
+        return -5  
+
 # ---------------------- Example Usage ----------------------
 if __name__ == "__main__":
     feature = {
-        "feature_name": "Creator fund payout tracking in CDS",
-        "feature_description": """Monetization events will be tracked through CDS to detect anomalies in creator payouts. DRT rules apply for log trimming."""
+        "feature_name": "Curfew login blocker with ASL and GH for Utah minors",
+        "feature_description": """To comply with the Utah Social Media Regulation Act, we are implementing a curfew-based login restriction for users under 18. The system uses ASL to detect minor accounts and routes enforcement through GH to apply only within Utah boundaries. The feature activates during restricted night hours and logs activity using EchoTrace for auditability. This allows parental control to be enacted without user-facing alerts, operating in ShadowMode during initial rollout."""
 
     }
 
@@ -166,10 +228,27 @@ if __name__ == "__main__":
             print(f"Matched Law: {related_regulation}")
             print(regulation_context[:1000], "...")  # print preview
 
-        # Step 3: Classification
+        # Step 3: Classification (Ollama)
+        import json
         classification = classify_stage(entities, regulation_context)
-        print("\n--- Classification ---")
+        print("\n--- Classification (Ollama) ---")
         print(classification)
+        try:
+            ollama_result = json.loads(classification)
+        except Exception:
+            ollama_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
+
+        # Step 4: Classification (Gemini)
+        gemini_result = classify_stage_gemini(entities, regulation_context)
+        print("\n--- Classification (Gemini) ---")
+        print(gemini_result)
+
+        # Step 5: Reward calculation
+        reward = compute_reward(ollama_result, gemini_result)
+        print(f"\n--- RL Reward ---\nReward: {reward}")
+
+        # Step 6: (Placeholder) Retrain Ollama with reward signal
+        # Ollama does not support RLHF retraining via API. This is a placeholder for future extension.
 
     except Exception as e:
         print("Error:", e)
