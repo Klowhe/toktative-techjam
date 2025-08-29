@@ -164,7 +164,7 @@ def retrieve_best_regulation_text(feature_description, entities, top_k):
     }]
 
 
-def classify_stage(entities: str, regulation_context: str):
+def classify_stage(entities: str, feature_desc: str, regulation_context: str):
     """
     Classify feature as:
     - Yes: legal obligation
@@ -174,7 +174,10 @@ def classify_stage(entities: str, regulation_context: str):
     Output JSON with keys: classification, reasoning, related_regulation.
     """
     prompt = f"""
-    Entities extracted:
+    Feature Description:
+    {feature_desc}
+
+    Entities extracted from feature:
     {entities}
 
     Relevant regulation text:
@@ -186,7 +189,7 @@ def classify_stage(entities: str, regulation_context: str):
     Based on this information:
     1. Reference the terminology dictionary for technical terminologies and abbreviations.
     2. Answer "Yes" if feature required by law/regulation in specific regions, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
-    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions.
+    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions. Do not infer or guess a regulatory requirement unless the feature description or entities explicitly reference or clearly imply it.
     4. If any related regulation/article is relevant, mention it concisely, otherwise use "None".
 
     Based on all input, respond strictly in JSON **with exactly these keys**:
@@ -194,9 +197,7 @@ def classify_stage(entities: str, regulation_context: str):
     "reasoning": "1-2 sentence reasoning",
     "related_regulation": "main law or article name"
 
-    Rules:
     - Do not create lists or nested objects. Combine all reasoning into one string.
-    - Do not infer regulatory requirements if none are explicitly mentioned in the feature description or extracted entities.
     """
     messages = [
         {"role": "system", "content": "You are a compliance classifier."},
@@ -243,7 +244,7 @@ if __name__ == "__main__":
                 print(regulation_context[:1000], "...")  # print preview
 
             # Step 3: Classification and Reasoning(Ollama)
-            classification = classify_stage(entities, regulation_context)
+            classification = classify_stage(entities, feature["feature_description"], regulation_context)
             print("\n--- Classification (Ollama) ---")
             print(classification)
             try:
