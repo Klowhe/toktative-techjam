@@ -5,20 +5,34 @@ import sys
 import traceback
 from datetime import datetime
 import uuid
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add src directory to path for imports
 sys.path.append(os.path.dirname(__file__))
 
+# Import backend modules
 from main import retrieve_top_documents, formulate_response
 from config.collections import SOURCE_COLLECTION_MAP
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
+print("Backend AI modules loaded successfully")
+print(f"Environment variables loaded from .env file")
+print(f"Qdrant endpoint: {os.getenv('QDRANT_ENDPOINT', 'Not configured')}")
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+    return jsonify({
+        "status": "healthy", 
+        "backend_available": True,
+        "qdrant_configured": bool(os.getenv('QDRANT_ENDPOINT')),
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_feature():
@@ -50,21 +64,28 @@ def analyze_feature():
         if prd_text:
             query_text += f"\nDetailed Requirements: {prd_text}"
             
-        # Retrieve relevant documents
-        top_results = retrieve_top_documents(query_text, source_file, top_k=5)
-        
-        # Generate compliance analysis
-        analysis_response = formulate_response(top_results, query_text)
-        
-        # Parse response to extract classification info
-        classification_result = parse_analysis_response(analysis_response, title, description)
-        
-        return jsonify({
-            "success": True,
-            "feature": classification_result,
-            "raw_analysis": analysis_response,
-            "retrieved_documents": len(top_results)
-        })
+        # Use real AI backend
+        try:
+            # Retrieve relevant documents
+            top_results = retrieve_top_documents(query_text, source_file, top_k=5)
+            
+            # Generate compliance analysis
+            analysis_response = formulate_response(top_results, query_text)
+            
+            # Parse response to extract classification info
+            classification_result = parse_analysis_response(analysis_response, title, description)
+            
+            return jsonify({
+                "success": True,
+                "feature": classification_result,
+                "raw_analysis": analysis_response,
+                "retrieved_documents": len(top_results),
+                "mode": "ai"
+            })
+        except Exception as ai_error:
+            print(f"AI backend error: {ai_error}")
+            traceback.print_exc()
+            return jsonify({"error": f"AI analysis failed: {str(ai_error)}"}), 500
         
     except Exception as e:
         print(f"Error in analyze_feature: {str(e)}")
@@ -145,4 +166,4 @@ def get_available_sources():
 if __name__ == '__main__':
     print("Starting GeoReg Compliance API...")
     print("Available sources:", list(SOURCE_COLLECTION_MAP.keys()))
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5001)

@@ -1,27 +1,6 @@
 export function Features(analyzedFeature = null) {
-  // Single mock feature for demonstration (no database)
-  const mockFeature = {
-    id: 'feat_001',
-    title: 'Teen Sleep Mode (US)',
-    description: 'Feature that restricts app usage for users under 18 during night hours (10 PM - 6 AM), requiring parental consent to override. This includes push notification restrictions, content feed limitations, and direct messaging controls during these hours.',
-    flag: 'Yes',
-    confidence: 0.88,
-    regulations: ['UT Social Media Act', 'FL Online Protections', 'CA Protecting Our Kids'],
-    created_at: '2025-08-26T10:30:00Z',
-    review_status: 'none',
-    regions_affected: ['United States'],
-    reasoning: 'Feature directly targets minors and restricts their app usage during specific hours, triggering child protection regulations in multiple US states.',
-    age: 'Under 18',
-    impact_assessment: 'High - Affects all US users under 18',
-    business_impact: 'Medium - May reduce engagement but improves compliance',
-    technical_complexity: 'Medium - Requires age verification integration',
-    rollout_timeline: '3-4 weeks',
-    stakeholders: ['Legal Team', 'Product Safety', 'Engineering'],
-    risk_level: 'High'
-  };
-
-  // Use analyzed feature if exists, otherwise show single mock feature
-  const features = analyzedFeature ? [analyzedFeature] : [mockFeature];
+  // Only show real analyzed features - no hardcoded data
+  const features = analyzedFeature ? [analyzedFeature] : [];
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -72,29 +51,6 @@ export function Features(analyzedFeature = null) {
         <div style="margin-bottom: 2rem;">
           <h2 style="color: #1f2937; margin-bottom: 0.5rem; font-size: 1.75rem;">Classified Features</h2>
           <p style="color: #6b7280;">Review and manage geo-regulatory compliance classifications</p>
-        </div>
-
-        <!-- Search and Filters -->
-        <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 2rem;">
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-            <input type="text" placeholder="Search features..." 
-                   style="flex: 1; min-width: 250px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem;">
-            <select style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem;">
-              <option value="">All Flags</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-              <option value="Maybe">Maybe</option>
-            </select>
-            <select style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem;">
-              <option value="">All Status</option>
-              <option value="none">No Review</option>
-              <option value="approved">Approved</option>
-              <option value="overridden">Overridden</option>
-            </select>
-            <button style="padding: 0.5rem 1rem; background: #009995; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
-              Export CSV
-            </button>
-          </div>
         </div>
 
         <!-- Features Table -->
@@ -194,28 +150,35 @@ export function Features(analyzedFeature = null) {
                           </div>
                         </div>
 
-                        <!-- Right Column - Impact Assessment -->
+                        <!-- Right Column - AI Analysis -->
                         <div>
-                          <h4 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Impact Assessment</h4>
-                          <div style="display: grid; gap: 0.75rem; margin-bottom: 1.5rem;">
+                          <h4 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">AI Analysis Results</h4>
+                          <div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
                             <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">User Impact</label>
-                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${feature.impact_assessment || 'Impact assessment pending'}</p>
+                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Analysis Confidence</label>
+                              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
+                                  <div style="height: 100%; background: ${feature.confidence > 0.8 ? '#22c55e' : feature.confidence > 0.6 ? '#f59e0b' : '#ef4444'}; width: ${(feature.confidence * 100)}%; border-radius: 4px;"></div>
+                                </div>
+                                <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">${Math.round(feature.confidence * 100)}%</span>
+                              </div>
                             </div>
                             
                             <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Business Impact</label>
-                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${feature.business_impact || 'Business impact pending'}</p>
+                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Risk Level</label>
+                              <span style="display: inline-block; padding: 0.375rem 0.875rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500; color: white; background: ${feature.risk_level === 'High' ? '#ef4444' : feature.risk_level === 'Medium' ? '#f59e0b' : '#22c55e'};">
+                                ${feature.risk_level || 'Not assessed'}
+                              </span>
                             </div>
-                            
+
                             <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Technical Complexity</label>
-                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${feature.technical_complexity || 'Complexity assessment pending'}</p>
+                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Retrieved Documents</label>
+                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">Analysis based on ${window.lastAnalysisMetadata?.retrieved_documents || 'N/A'} relevant regulatory documents</p>
                             </div>
-                            
+
                             <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Expected Timeline</label>
-                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${feature.rollout_timeline || 'Timeline to be determined'}</p>
+                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Analysis Date</label>
+                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${formatDate(feature.created_at)}</p>
                             </div>
                           </div>
 
@@ -227,6 +190,9 @@ export function Features(analyzedFeature = null) {
                             <button onclick="exportDetails('${feature.id}')" style="padding: 0.75rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
                               Export Details
                             </button>
+                            <button onclick="viewRawAnalysis('${feature.id}')" style="padding: 0.75rem 1.25rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                              View Full Analysis
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -237,7 +203,7 @@ export function Features(analyzedFeature = null) {
                 <tr>
                   <td colspan="6" style="padding: 3rem; text-align: center; color: #6b7280;">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                      <div style="font-size: 3rem;">📋</div>
+                      <div style="font-size: 3rem;">�</div>
                       <div>
                         <h3 style="color: #374151; margin: 0 0 0.5rem 0; font-size: 1.125rem;">No Features Analyzed Yet</h3>
                         <p style="margin: 0; font-size: 0.875rem;">Upload and analyze a PRD/TRD to see classification results here.</p>

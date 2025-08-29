@@ -92,12 +92,6 @@ function setupUploadHandler() {
         submitButton.disabled = true;
         
         try {
-          // Check backend health first
-          const healthCheck = await realApi.checkHealth();
-          if (!healthCheck.healthy) {
-            showToast('Backend unavailable - using mock analysis', 'warning');
-          }
-          
           // Call real API for analysis
           const result = await realApi.analyzeFeature({
             title: title.trim(),
@@ -106,18 +100,20 @@ function setupUploadHandler() {
           });
           
           if (result.success) {
-            // Store the analyzed feature globally
+            // Store the analyzed feature and metadata globally
             analyzedFeature = result.feature;
+            window.lastAnalysisMetadata = {
+              raw_analysis: result.raw_analysis,
+              retrieved_documents: result.retrieved_documents,
+              mode: result.mode
+            };
             
-            const isMock = result.metadata && result.metadata.mock;
-            const analysisType = isMock ? 'Mock analysis' : 'AI analysis';
-            
-            showToast(`${analysisType} complete! Classification: ${result.feature.flag} - Redirecting to Features...`, 'success');
+            showToast(`Analysis complete! Classification: ${result.feature.flag} - Redirecting to Features...`, 'success');
             
             // Log analysis details
             console.log('Analysis result:', result);
-            if (result.metadata && result.metadata.raw_analysis) {
-              console.log('Raw analysis:', result.metadata.raw_analysis);
+            if (result.raw_analysis) {
+              console.log('Raw analysis:', result.raw_analysis);
             }
             
             // Redirect to features page after a short delay
@@ -326,6 +322,46 @@ function exportDetails(featureId) {
   // Here you would implement actual export functionality
 }
 
+function viewRawAnalysis(featureId) {
+  const rawAnalysis = window.lastAnalysisMetadata?.raw_analysis;
+  if (rawAnalysis) {
+    // Create a modal to display the raw analysis
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+      background: rgba(0,0,0,0.5); display: flex; align-items: center; 
+      justify-content: center; z-index: 1000; padding: 2rem;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background: white; border-radius: 8px; max-width: 800px; max-height: 80vh; width: 100%; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: between; align-items: center;">
+          <h3 style="margin: 0; color: #1f2937; font-size: 1.25rem;">Full AI Analysis</h3>
+          <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; padding: 0; margin-left: auto;">×</button>
+        </div>
+        <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
+          <pre style="white-space: pre-wrap; font-family: system-ui; line-height: 1.6; color: #374151; margin: 0;">${rawAnalysis}</pre>
+        </div>
+        <div style="padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end;">
+          <button onclick="this.closest('.modal').remove()" style="padding: 0.5rem 1rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
+        </div>
+      </div>
+    `;
+    
+    modal.className = 'modal';
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  } else {
+    showToast('No raw analysis available', 'error');
+  }
+}
+
 // Make functions global for onclick handlers
 window.navigateTo = navigateTo;
 window.logout = logout;
@@ -335,6 +371,7 @@ window.parseDocument = parseDocument;
 window.toggleFeatureDetails = toggleFeatureDetails;
 window.sendToEmail = sendToEmail;
 window.exportDetails = exportDetails;
+window.viewRawAnalysis = viewRawAnalysis;
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded');

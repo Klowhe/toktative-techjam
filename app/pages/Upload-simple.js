@@ -13,11 +13,7 @@ export function Upload() {
             <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 60px; justify-content: center;">
               <button onclick="navigateTo('/features')" style="padding: 0.75rem 1.5rem; background: transparent; color: #88898a; border: none; cursor: pointer; font-size: 0.875rem;">Features</button>
             </div>
-            <!-- Backend Status Indicator -->
-            <div id="backend-status" style="margin-left: 1rem; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; background: #6b7280; color: white;">
-              Checking...
-            </div>
-            <button onclick="logout()" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 1rem;">Logout</button>
+            <button onclick="logout()" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: auto;">Logout</button>
           </div>
         </div>
       </nav>
@@ -35,7 +31,6 @@ export function Upload() {
               <input type="file" id="document-input" accept=".pdf,.docx,.doc" 
                      style="display: none;" onchange="handleFileUpload(event)">
               <div onclick="document.getElementById('document-input').click()" style="cursor: pointer;">
-                <div style="font-size: 2rem; color: #9ca3af; margin-bottom: 0.5rem;">📄</div>
                 <p style="color: #374151; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.875rem;">Click to upload document</p>
                 <p style="color: #6b7280; font-size: 0.75rem;">PDF, DOCX files up to 10MB</p>
               </div>
