@@ -4,6 +4,17 @@ from qdrant_client import QdrantClient
 from dotenv import load_dotenv
 import google.generativeai as genai
 import json
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import string
+import jsonschema
+import numpy as np
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('punkt_tab')
+
 
 # ---------------------- Load Environment ----------------------
 load_dotenv()
@@ -95,8 +106,10 @@ def retrieve_best_regulation_text(feature_description: str, top_k: int = 3):
     Returns a list of dicts: [{"collection": ..., "source_file": ..., "texts": [...]}]
     """
     results = []
+    embedding = get_embedding(feature_description)
+    
+    #This approach searches for top-k documents for every collection. Do we want to continue with this approach? Very time consuming
     for source_file, collection_name in SOURCE_COLLECTION_MAP.items():
-        embedding = get_embedding(feature_description)
         top_docs = query_qdrant(embedding, collection_name, top_k=top_k)
         texts = [doc.payload.get("text", "") for doc in top_docs if "text" in doc.payload]
         if texts:
@@ -183,21 +196,85 @@ def classify_stage_gemini(entities: str, regulation_context: str):
         print("Gemini model error:", e)
         return {"classification": "Maybe", "reasoning": "Gemini model error", "related_regulation": ""}
 
-def compute_reward(ollama_result, gemini_result):
+# ---------------------- Reward Computation ----------------------
+STOPWORDS = set(stopwords.words("english"))
+
+def clean_and_tokenize(text):
+    tokens = word_tokenize(text.lower())
+    return [t for t in tokens if t not in STOPWORDS and t not in string.punctuation]
+
+
+def compute_reward(ollama_result, gemini_result, regulation_context):
     """
-    Compare Ollama and Gemini classification and assign reward.
+    Compute reward using simpler, library-backed functions.
+    embedder: a sentence-transformers model or similar.
     """
-    ollama_cls = ollama_result.get("classification", "").strip().lower()
-    gemini_cls = gemini_result.get("classification", "").strip().lower()
-    print(f"DEBUG: ollama_cls='{ollama_cls}', gemini_cls='{gemini_cls}'")  # <--- Add this line
+    # --- Normalize classification labels ---
+    def norm(label):
+        label = str(label).lower().strip()
+        if "yes" in label: return "yes"
+        if "no" in label: return "no"
+        return "maybe"
+
+    ollama_cls = norm(ollama_result.get("classification", "maybe"))
+    gemini_cls = norm(gemini_result.get("classification", "maybe"))
+
+    # --- 1. Classification agreement ---
     if ollama_cls == gemini_cls:
-        return 5  # positive reward
-    elif ollama_cls == "maybe" and gemini_cls in ("yes", "no"):
-        return -1  # unsure, less penalty
-    elif gemini_cls == "maybe" and ollama_cls in ("yes", "no"):
-        return -1
+        cls_score = 5
+    elif "maybe" in {ollama_cls, gemini_cls}:
+        cls_score = -1
     else:
-        return -5  
+        cls_score = -5
+
+    # --- 2. Reasoning similarity (semantic) ---
+    o_reason = ollama_result.get("reasoning", "")
+    g_reason = gemini_result.get("reasoning", "")
+    if o_reason and g_reason:
+        v1 = np.array(get_embedding(o_reason)).reshape(1, -1)
+        v2 = np.array(get_embedding(g_reason)).reshape(1, -1)
+        # v1 = embedder.encode(o_reason, convert_to_tensor=True).reshape(1, -1)
+        # v2 = embedder.encode(g_reason, convert_to_tensor=True).reshape(1, -1)
+        sim = cosine_similarity(v1, v2)[0][0]
+        reason_score = 2 * sim  # scale to [0,2]
+    else:
+        reason_score = 0
+
+    # --- 3. Grounding (keyword overlap) ---
+    reg_tokens = set(clean_and_tokenize(regulation_context))
+    out_tokens = set(clean_and_tokenize(o_reason + " " + g_reason))
+    overlap = len(reg_tokens & out_tokens) / max(1, len(reg_tokens))
+    grounding_score = 3 * overlap  # up to 3 points
+
+    # --- 4. Schema validation ---
+    schema = {
+        "type": "object",
+        "properties": {
+            "classification": {"type": "string"},
+            "reasoning": {"type": "string"},
+            "related_regulation": {"type": "string"},
+        },
+        "required": ["classification", "reasoning", "related_regulation"],
+    }
+    schema_score = 0
+    try:
+        jsonschema.validate(ollama_result, schema)
+        jsonschema.validate(gemini_result, schema)
+        schema_score = 2
+    except jsonschema.ValidationError:
+        schema_score = -1
+
+    # --- Combine ---
+    total = cls_score + reason_score + grounding_score + schema_score
+    return {
+        "total": total,
+        "components": {
+            "classification": cls_score,
+            "reasoning": reason_score,
+            "grounding": grounding_score,
+            "schema": schema_score,
+        },
+    }
 
 # ---------------------- Example Usage ----------------------
 if __name__ == "__main__":
@@ -244,7 +321,7 @@ if __name__ == "__main__":
         print(gemini_result)
 
         # Step 5: Reward calculation
-        reward = compute_reward(ollama_result, gemini_result)
+        reward = compute_reward(ollama_result, gemini_result, regulation_context) 
         print(f"\n--- RL Reward ---\nReward: {reward}")
 
         # Step 6: (Placeholder) Retrain Ollama with reward signal
