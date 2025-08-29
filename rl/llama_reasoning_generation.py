@@ -11,10 +11,7 @@ import string
 import jsonschema
 import numpy as np
 import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('punkt_tab')
-
+import pandas as pd
 
 # ---------------------- Load Environment ----------------------
 load_dotenv()
@@ -134,7 +131,12 @@ def classify_stage(entities: str, regulation_context: str):
     2. Provide a short reasoning (1-2 sentences).
     3. If any related regulation/article is relevant, mention it concisely.
 
-    Respond strictly in JSON format with keys: classification ("Yes", "No", "Maybe"), reasoning, related_regulation.
+    Based on all input, respond strictly in JSON **with exactly these keys**:
+    "classification": "Yes" | "No" | "Maybe",
+    "reasoning": "1-2 sentence reasoning",
+    "related_regulation": "main law or article name"
+     
+    Do not create lists or nested objects. Combine all reasoning into one string.
     """
     messages = [
         {"role": "system", "content": "You are a compliance classifier."},
@@ -142,44 +144,59 @@ def classify_stage(entities: str, regulation_context: str):
     ]
     return chat_with_ollama(messages)
 
-# ---------------------- Example Usage ----------------------
+# --------------------------------------------
+dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
+df = pd.read_excel(dataset_file_path)
+reasoning_list = []
+regulation_list = []
 if __name__ == "__main__":
-    feature = {
-        "feature_name": "Curfew login blocker with ASL and GH for Utah minors",
-        "feature_description": """To comply with the Utah Social Media Regulation Act, we are implementing a curfew-based login restriction for users under 18. The system uses ASL to detect minor accounts and routes enforcement through GH to apply only within Utah boundaries. The feature activates during restricted night hours and logs activity using EchoTrace for auditability. This allows parental control to be enacted without user-facing alerts, operating in ShadowMode during initial rollout."""
-
-    }
-
-    try:
-        # Step 1: Extract entities
-        entities = extract_entities(feature["feature_name"], feature["feature_description"])
-        print("\n--- Extracted Entities ---")
-        print(entities)
-
-        # Step 2: Search all laws for best match
-        regulation_results = retrieve_best_regulation_text(feature["feature_description"], top_k=3)
-        if not regulation_results:
-            print("\n--- Regulation Context ---")
-            print("No relevant regulation found.")
-            regulation_context = ""
-            related_regulation = ""
-        else:
-            best = regulation_results[0]
-            regulation_context = "\n\n".join(best["texts"])
-            related_regulation = best["source_file"]
-            print("\n--- Regulation Context ---")
-            print(f"Matched Law: {related_regulation}")
-            print(regulation_context[:1000], "...")  # print preview
-
-        # Step 3: Classification and Reasoning(Ollama)
-        import json
-        classification = classify_stage(entities, regulation_context)
-        print("\n--- Classification (Ollama) ---")
-        print(classification)
+    for row in df.itertuples():
+        feature = {
+            "feature_name": row.feature_name,
+            "feature_description": row.feature_description
+        }
         try:
-            ollama_result = json.loads(classification)
-        except Exception:
-            ollama_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
-        print(ollama_result)
-    except Exception as e:
-        print("Error:", e)
+            # Step 1: Extract entities
+            entities = extract_entities(feature["feature_name"], feature["feature_description"])
+            print("\n--- Extracted Entities ---")
+            print(entities)
+
+            # Step 2: Search all laws for best match
+            regulation_results = retrieve_best_regulation_text(feature["feature_description"], top_k=3)
+            if not regulation_results:
+                print("\n--- Regulation Context ---")
+                print("No relevant regulation found.")
+                regulation_context = ""
+                related_regulation = ""
+            else:
+                best = regulation_results[0]
+                regulation_context = "\n\n".join(best["texts"])
+                related_regulation = best["source_file"]
+                print("\n--- Regulation Context ---")
+                print(f"Matched Law: {related_regulation}")
+                print(regulation_context[:1000], "...")  # print preview
+
+            # Step 3: Classification and Reasoning(Ollama)
+            classification = classify_stage(entities, regulation_context)
+            print("\n--- Classification (Ollama) ---")
+            print(classification)
+            try:
+                ollama_result = json.loads(classification)
+                if isinstance(ollama_result, list):
+                    final_result = ollama_result[0]  # take first item
+                else:
+                    final_result = ollama_result  # it's already a single object
+            except Exception:
+                final_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
+            reasoning_list.extend([final_result['reasoning']])
+            regulation_list.extend([final_result['related_regulation']])
+        except Exception as e:
+            print("Error:", e)
+            reasoning_list.append("Error during reasoning")
+            regulation_list.append("Error during reasoning")
+    
+    df['ollama_reasoning'] = reasoning_list
+    df['related_regulation'] = regulation_list
+    output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
+    df.to_excel(output_path, index=False)
+    print(f"Saved results to {output_path}")
