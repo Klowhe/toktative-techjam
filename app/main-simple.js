@@ -2,6 +2,7 @@
 import { Login } from './pages/Login.js';
 import { Upload } from './pages/Upload-simple.js';
 import { Features } from './pages/Features.js';
+import { realApi } from './api/realAdapter.js';
 
 console.log('Main.js loaded');
 
@@ -34,6 +35,7 @@ function handleRoute() {
       case '/upload':
         root.innerHTML = Upload();
         setupUploadHandler();
+        checkBackendStatus();
         break;
       case '/features':
         root.innerHTML = Features(analyzedFeature);
@@ -72,7 +74,7 @@ function setupLoginHandler() {
 function setupUploadHandler() {
   const form = document.getElementById('upload-form');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
       const title = formData.get('title');
@@ -80,39 +82,60 @@ function setupUploadHandler() {
       const prd_text = formData.get('prd_text');
       
       if (title && description && prd_text) {
-        showToast('Feature submitted for analysis!', 'success');
+        showToast('Feature submitted for analysis!', 'info');
         console.log('Feature submitted:', { title, description, prd_text });
         
-        // Simulate analysis and create analyzed feature
-        setTimeout(() => {
-          // Generate a random classification result
-          const classifications = [
-            { flag: 'Yes', confidence: 0.92, regulations: ['GDPR Article 8', 'CA Privacy Act'] },
-            { flag: 'No', confidence: 0.88, regulations: [] },
-            { flag: 'Maybe', confidence: 0.65, regulations: ['EU Digital Services Act'] }
-          ];
-          const randomClassification = classifications[Math.floor(Math.random() * classifications.length)];
+        // Show loading state
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Analyzing...';
+        submitButton.disabled = true;
+        
+        try {
+          // Check backend health first
+          const healthCheck = await realApi.checkHealth();
+          if (!healthCheck.healthy) {
+            showToast('Backend unavailable - using mock analysis', 'warning');
+          }
           
-          // Store the analyzed feature globally
-          analyzedFeature = {
-            id: 'feat_analyzed_' + Date.now(),
+          // Call real API for analysis
+          const result = await realApi.analyzeFeature({
             title: title.trim(),
             description: description.trim(),
-            flag: randomClassification.flag,
-            confidence: randomClassification.confidence,
-            regulations: randomClassification.regulations,
-            created_at: new Date().toISOString(),
-            review_status: 'none',
-            prd_content: prd_text.trim()
-          };
+            prd_text: prd_text.trim()
+          });
           
-          showToast(`Analysis complete! Classification: ${randomClassification.flag} - Redirecting to Features...`, 'success');
+          if (result.success) {
+            // Store the analyzed feature globally
+            analyzedFeature = result.feature;
+            
+            const isMock = result.metadata && result.metadata.mock;
+            const analysisType = isMock ? 'Mock analysis' : 'AI analysis';
+            
+            showToast(`${analysisType} complete! Classification: ${result.feature.flag} - Redirecting to Features...`, 'success');
+            
+            // Log analysis details
+            console.log('Analysis result:', result);
+            if (result.metadata && result.metadata.raw_analysis) {
+              console.log('Raw analysis:', result.metadata.raw_analysis);
+            }
+            
+            // Redirect to features page after a short delay
+            setTimeout(() => {
+              navigateTo('/features');
+            }, 1500);
+          } else {
+            throw new Error('Analysis failed');
+          }
           
-          // Redirect to features page after a short delay
-          setTimeout(() => {
-            navigateTo('/features');
-          }, 1500);
-        }, 2000);
+        } catch (error) {
+          console.error('Analysis error:', error);
+          showToast(`Analysis failed: ${error.message}`, 'error');
+        } finally {
+          // Reset button state
+          submitButton.textContent = originalText;
+          submitButton.disabled = false;
+        }
       }
     });
   }
@@ -252,6 +275,29 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.remove();
   }, 3000);
+}
+
+// Check backend API status
+async function checkBackendStatus() {
+  const statusElement = document.getElementById('backend-status');
+  if (!statusElement) return;
+  
+  try {
+    const health = await realApi.checkHealth();
+    if (health.healthy) {
+      statusElement.textContent = 'AI Backend Online';
+      statusElement.style.background = '#22c55e';
+      statusElement.style.color = 'white';
+    } else {
+      statusElement.textContent = 'Backend Offline (Mock Mode)';
+      statusElement.style.background = '#f59e0b';
+      statusElement.style.color = 'white';
+    }
+  } catch (error) {
+    statusElement.textContent = 'Backend Offline (Mock Mode)';
+    statusElement.style.background = '#f59e0b';
+    statusElement.style.color = 'white';
+  }
 }
 
 // Global functions for collapsible features
