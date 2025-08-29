@@ -68,24 +68,6 @@ SOURCE_COLLECTION_MAP = {
 
 # ---------------------- Pipeline Steps ----------------------
 
-# def extract_entities(feature_name: str, feature_description: str):
-#     """Extract structured entities from feature using LLM."""
-#     prompt = f"""
-#     Extract the following entities from this feature:
-#     - location (jurisdiction, state, or region)
-#     - age (any mentioned age group or restriction)
-#     - keywords (important technical / policy terms)
-#     - related_regulations (if any obvious law/regulation is mentioned)
-
-#     Respond strictly in JSON format.
-
-#     Feature Name: {feature_name}
-#     Feature Description: {feature_description}
-#     """
-#     messages = [{"role": "system", "content": "You are an expert compliance entity extractor."},
-#                 {"role": "user", "content": prompt}]
-#     return chat_with_ollama(messages)
-
 def extract_entities(feature_name: str, feature_description: str):
     """Extract structured entities from feature using LLM."""
     prompt = f"""
@@ -190,63 +172,6 @@ def classify_stage(entities: str, regulation_context: str):
         {"role": "user", "content": prompt}
     ]
     return chat_with_ollama(messages)
-
-# --------------------------------------------
-# dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
-# df = pd.read_excel(dataset_file_path)
-# reasoning_list = []
-# regulation_list = []
-# if __name__ == "__main__":
-#     for row in df.itertuples():
-#         feature = {
-#             "feature_name": row.feature_name,
-#             "feature_description": row.feature_description
-#         }
-#         try:
-#             # Step 1: Extract entities
-#             entities = extract_entities(feature["feature_name"], feature["feature_description"])
-#             print("\n--- Extracted Entities ---")
-#             print(entities)
-
-#             # Step 2: Search all laws for best match
-#             regulation_results = retrieve_best_regulation_text(feature["feature_description"], top_k=3)
-#             if not regulation_results:
-#                 print("\n--- Regulation Context ---")
-#                 print("No relevant regulation found.")
-#                 regulation_context = ""
-#                 related_regulation = ""
-#             else:
-#                 best = regulation_results[0]
-#                 regulation_context = "\n\n".join(best["texts"])
-#                 related_regulation = best["source_file"]
-#                 print("\n--- Regulation Context ---")
-#                 print(f"Matched Law: {related_regulation}")
-#                 print(regulation_context[:1000], "...")  # print preview
-
-#             # Step 3: Classification and Reasoning(Ollama)
-#             classification = classify_stage(entities, regulation_context)
-#             print("\n--- Classification (Ollama) ---")
-#             print(classification)
-#             try:
-#                 ollama_result = json.loads(classification)
-#                 if isinstance(ollama_result, list):
-#                     final_result = ollama_result[0]  # take first item
-#                 else:
-#                     final_result = ollama_result  # it's already a single object
-#             except Exception:
-#                 final_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
-#             reasoning_list.extend([final_result['reasoning']])
-#             regulation_list.extend([final_result['related_regulation']])
-#         except Exception as e:
-#             print("Error:", e)
-#             reasoning_list.append("Error during reasoning")
-#             regulation_list.append("Error during reasoning")
-    
-#     df['ollama_reasoning'] = reasoning_list
-#     df['related_regulation'] = regulation_list
-#     output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
-#     df.to_excel(output_path, index=False)
-#     print(f"Saved results to {output_path}")
 
 # ---------------------- Example Usage ----------------------
 dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
