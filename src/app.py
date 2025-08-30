@@ -64,7 +64,7 @@ print(f"Qdrant endpoint: {os.getenv('QDRANT_ENDPOINT', 'Not configured')}")
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    app.logger.info("💚 Health check requested")
+    app.logger.info("Health check requested")
     return jsonify({
         "status": "healthy", 
         "backend_available": True,
@@ -72,25 +72,67 @@ def health_check():
         "timestamp": datetime.now().isoformat()
     })
 
-@app.route('/api/analyze', methods=['POST'])
+def parse_structured_feature_text(text):
+    """
+    Parse structured feature input that may contain formats like:
+    Feature Title: Some title
+    Description: Some description
+    
+    Or similar structured formats with colons as separators.
+    """
+    if not text or not isinstance(text, str):
+        return None, None
+    
+    lines = text.strip().split('
+')
+    title = None
+    description = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Look for title patterns
+        if line.lower().startswith(('feature title:', 'title:', 'feature name:', 'name:')):
+            title_part = line.split(':', 1)
+            if len(title_part) > 1:
+                title = title_part[1].strip()
+        
+        # Look for description patterns
+        elif line.lower().startswith(('description:', 'desc:', 'feature description:')):
+            desc_part = line.split(':', 1)
+            if len(desc_part) > 1:
+                description = desc_part[1].strip()
+    
+    return title, description
+
+
+@app.route('/analyze_feature', methods=['POST'])
 def analyze_feature():
     """
-    Analyze a feature for geo-regulatory compliance
-    Expected payload: {
+    Analyze a feature for regulatory compliance.
+    
+    Expects JSON payload with:
+    {
         "title": "Feature Title",
         "description": "Feature Description", 
         "prd_text": "Full PRD Text",
         "source_file": "eu_dsa.pdf" (optional, defaults to eu_dsa.pdf)
     }
+    
+    Also supports structured text input in prd_text with formats like:
+    Feature Title: Some title
+    Description: Some description
     """
     start_time = datetime.now()
     try:
         data = request.get_json()
         
-        app.logger.info(f"🚀 NEW ANALYSIS REQUEST - Title: {data.get('title', 'Unknown') if data else 'No data'}")
+        app.logger.info(f"NEW ANALYSIS REQUEST - Title: {data.get('title', 'Unknown') if data else 'No data'}")
         
         if not data:
-            app.logger.error("❌ No JSON payload provided")
+            app.logger.error("No JSON payload provided")
             return jsonify({"error": "No JSON payload provided"}), 400
             
         title = data.get('title', '').strip()
@@ -98,45 +140,55 @@ def analyze_feature():
         prd_text = data.get('prd_text', '').strip()
         source_file = data.get('source_file', 'eu_dsa.pdf')
         
+        # If title or description is missing, try to parse from prd_text
+        if prd_text and (not title or not description):
+            parsed_title, parsed_description = parse_structured_feature_text(prd_text)
+            if not title and parsed_title:
+                title = parsed_title
+                app.logger.info(f"Extracted title from structured text: {title}")
+            if not description and parsed_description:
+                description = parsed_description
+                app.logger.info(f"Extracted description from structured text: {description}")
+        
         if not title or not description:
-            app.logger.error(f"❌ Missing required fields - Title: {bool(title)}, Description: {bool(description)}")
-            return jsonify({"error": "Title and description are required"}), 400
+            app.logger.error(f"Missing required fields - Title: {bool(title)}, Description: {bool(description)}")
+            return jsonify({"error": "Title and description are required. Provide them directly or in structured format within prd_text."}), 400
             
         # Combine all text for analysis
         feature_desc = f"{title}\n{description}\n{prd_text}" if prd_text else f"{title}\n{description}"
         
-        app.logger.info(f"📄 Feature description length: {len(feature_desc)} characters")
-        app.logger.info(f"📊 Source file: {source_file}")
+        app.logger.info(f"Feature description length: {len(feature_desc)} characters")
+        app.logger.info(f"Source file: {source_file}")
 
         # Step 1: Extract entities
-        app.logger.info("🔍 Step 1: Extracting entities...")
+        app.logger.info("Step 1: Extracting entities...")
         entities_json = extract_entities(title, description)
         try:
             entities = json.loads(entities_json)
-            app.logger.info(f"✅ Entities extracted: {list(entities.keys())}")
+            app.logger.info(f"Entities extracted: {list(entities.keys())}")
         except Exception:
             entities = {}
-            app.logger.warning("⚠️ Entity extraction failed, using empty entities")
+            app.logger.warning("Entity extraction failed, using empty entities")
 
         # Step 2: Retrieve best regulation text
-        app.logger.info("🔎 Step 2: Searching vector database for relevant regulations...")
+        app.logger.info("Step 2: Searching vector database for relevant regulations...")
         regulation_results = retrieve_best_regulation_text(description, entities, top_k=3)
         if not regulation_results:
             regulation_context = ""
             related_regulation = ""
             regions_affected = []
-            app.logger.warning("⚠️ No relevant regulations found in vector search")
+            app.logger.warning("No relevant regulations found in vector search")
         else:
             regulation_context = "\n\n".join(
                 "\n\n".join(r["texts"]) for r in regulation_results
             )
             related_regulation = ", ".join(r["source_file"] for r in regulation_results)
             regions_affected = [entities.get("location", "")] if entities.get("location", "") else []
-            app.logger.info(f"✅ Found {len(regulation_results)} relevant regulation sources: {related_regulation}")
-            app.logger.info(f"📝 Retrieved context length: {len(regulation_context)} characters")
+            app.logger.info(f"Found {len(regulation_results)} relevant regulation sources: {related_regulation}")
+            app.logger.info(f"Retrieved context length: {len(regulation_context)} characters")
 
         # Step 3: Classification and Reasoning (LLM)
-        app.logger.info("🤖 Step 3: Generating AI classification and reasoning...")
+        app.logger.info("Step 3: Generating AI classification and reasoning...")
         classification_json = classify_stage(entities, regulation_context)
         try:
             classification = json.loads(classification_json)
@@ -160,8 +212,8 @@ def analyze_feature():
         # Log successful completion
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds() * 1000
-        app.logger.info(f"✅ ANALYSIS COMPLETE - Classification: {result['flag']} - Duration: {duration:.0f}ms")
-        app.logger.info(f"📋 Final result: {result['title']} -> {result['flag']} ({len(result['reasoning'])} char reasoning)")
+        app.logger.info(f"ANALYSIS COMPLETE - Classification: {result['flag']} - Duration: {duration:.0f}ms")
+        app.logger.info(f"Final result: {result['title']} -> {result['flag']} ({len(result['reasoning'])} char reasoning)")
 
         return jsonify({
             "success": True,
@@ -173,7 +225,7 @@ def analyze_feature():
     except Exception as e:
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds() * 1000
-        app.logger.error(f"❌ ANALYSIS FAILED - Duration: {duration:.0f}ms - Error: {str(e)}")
+        app.logger.error(f"ANALYSIS FAILED - Duration: {duration:.0f}ms - Error: {str(e)}")
         print(f"Error in analyze_feature: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
