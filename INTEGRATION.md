@@ -159,12 +159,10 @@ curl -X POST http://localhost:5001/api/analyze \
     "title": "Teen Sleep Mode",
     "description": "Restrict app usage for under 18 during night hours",
     "flag": "Maybe",
-    "confidence": 0.65,
     "reasoning": "Feature meets requirements for protecting minors online...",
     "regulations": ["EU Privacy Directive"],
     "age": "Under 18",
     "regions_affected": ["European Union"],
-    "risk_level": "Medium",
     "created_at": "2025-08-29T09:40:34.892961"
   },
   "raw_analysis": "Detailed AI analysis explanation...",
@@ -202,7 +200,6 @@ response = generate_response(
 # Parse AI response into structured data
 classification = {
     "flag": extract_compliance_flag(response),
-    "confidence": calculate_confidence(response),
     "reasoning": extract_reasoning(response),
     "regulations": identify_regulations(response)
 }
@@ -256,7 +253,7 @@ Structured JSON Response
 Frontend Result Display
 ```
 
-## 🚨 Troubleshooting Integration
+## Troubleshooting Integration
 
 ### Backend Connection Issues
 ```bash
