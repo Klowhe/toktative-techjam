@@ -1,0 +1,20 @@
+✅ Backend AI modules loaded successfully
+✅ Environment variables loaded from .env file
+✅ Qdrant endpoint: https://37557055-77c3-4abd-9f99-ed908b82ff44.europe-west3-0.gcp.cloud.qdrant.io
+Starting GeoReg Compliance API...
+Available sources: ['eu_dsa.pdf', 'fl_bill.pdf', 'utah_regulation_act.pdf', 'ncmec.pdf', 'ca_poksmaa.pdf']
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.50.235:5001
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [29/Aug/2025 09:39:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 09:39:56] "POST /api/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 09:40:34] "POST /api/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 09:45:03] "OPTIONS /api/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 09:45:17] "POST /api/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 09:51:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 21:06:00] "OPTIONS /api/analyze HTTP/1.1" 200 -
+127.0.0.1 - - [29/Aug/2025 21:06:30] "POST /api/analyze HTTP/1.1" 200 -

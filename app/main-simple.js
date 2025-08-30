@@ -156,7 +156,7 @@ function parseDocument() {
   showToast('Parsing document...', 'info');
   console.log('Parsing document:', file.name);
   
-  // Create FormData to send file to backend
+    // Create FormData to send file to backend
   const formData = new FormData();
   formData.append('document', file);
   

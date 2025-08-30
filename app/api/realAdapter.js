@@ -1,5 +1,7 @@
 // Real API adapter for backend integration
-const API_BASE_URL = 'http://localhost:5001/api';
+import { currentConfig } from '../config/environment.js';
+
+const API_BASE_URL = currentConfig.API_BASE_URL;
 
 export class RealApiAdapter {
   async analyzeFeature(featureData) {
@@ -8,6 +10,8 @@ export class RealApiAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // Add any AWS-specific headers if needed
+          ...(currentConfig.awsHeaders || {})
         },
         body: JSON.stringify({
           title: featureData.title,
@@ -55,7 +59,8 @@ export class RealApiAdapter {
 
   async checkHealth() {
     try {
-      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+      const healthUrl = currentConfig.HEALTH_ENDPOINT || `${API_BASE_URL.replace('/api', '')}/health`;
+      const response = await fetch(healthUrl);
       const data = await response.json();
       return { healthy: response.ok, data };
     } catch (error) {
