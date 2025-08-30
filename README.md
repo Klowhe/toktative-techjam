@@ -63,7 +63,6 @@ All regulatory embeddings are stored in **Qdrant**, a high-performance vector da
 
 Our approach is **Reinforcement Learning with AI Feedback (RLAIF)**:
 
-
 **AI Feedback Component (RLAIF)**:
 
 - Gemini 2.0 used for classification accuracy validation
@@ -196,7 +195,6 @@ description_patterns = [
 
 - HTML email template generation
 - Feature analysis summaries
-- Compliance risk assessments
 - Regulatory context information
 
 **Production Configuration** (Ready for deployment):
@@ -215,7 +213,6 @@ authentication = "OAuth2/API_KEY"
 
 - Comprehensive compliance data
 - Regulatory mapping details
-- Risk assessment metrics
 - Timestamp and audit trail
 - Formatted for compliance documentation
 
@@ -447,8 +444,7 @@ Content-Type: application/json
     "confidence": 0.75,
     "reasoning": "Analysis indicates potential regulatory implications...",
     "regulations": ["EU Digital Services Act"],
-    "age": "All Ages",
-    "risk_level": "Medium"
+    "age": "All Ages"
   },
   "raw_analysis": "Detailed AI analysis text...",
   "retrieved_documents": 5
@@ -573,7 +569,6 @@ The **GeoReg Compliance Classifier** represents a significant advancement in aut
 
 ### Business Impact
 
-- **Risk Reduction**: Automated identification of regulatory violations
 - **Efficiency Gains**: 90% reduction in manual compliance review time
 - **Scalability**: Support for growing product portfolios and regulatory complexity
 - **Audit Trail**: Complete documentation for compliance reporting
@@ -635,7 +630,6 @@ _Revolutionizing Regulatory Compliance Through AI Innovation_
 3. **View Results**:
    - See AI classification (Yes/No/Maybe for compliance risk)
    - Review detailed reasoning and identified regulations
-   - Check confidence scores and risk levels
    - Access full raw AI analysis
 
 ### Features Dashboard
@@ -643,7 +637,7 @@ _Revolutionizing Regulatory Compliance Through AI Innovation_
 - **Clean Interface**: No search bars or filters - focus on AI insights
 - **Real Data Only**: Shows only actual analyzed features (no mock data)
 - **Detailed Views**: Click features to see comprehensive AI analysis
-- **Rich Information**: Confidence meters, risk levels, regulation detection
+- **Regulation Detection**:
 
 ## 🔧 Configuration
 
@@ -680,7 +674,7 @@ FLASK_ENV=production  # Optional: disable debug mode
 ### 3. Response Processing
 
 - Extracts key information: flag, confidence, regulations, reasoning
-- Classifies risk levels and age group targeting
+- Classifies age group targeting
 - Returns structured JSON with full analysis details
 
 ## 📊 Analysis Output
@@ -689,7 +683,6 @@ Each AI analysis provides:
 
 - **Compliance Flag**: Yes/No/Maybe for regulatory risk
 - **Confidence Score**: 0-100% AI confidence in assessment
-- **Risk Level**: High/Medium/Low classification
 - **Target Age Group**: All Ages/Under 18/Adults Only
 - **Identified Regulations**: Specific laws/guidelines triggered
 - **Detailed Reasoning**: Full AI explanation of analysis
@@ -800,8 +793,7 @@ Analyzes feature for regulatory compliance
 {
   "title": "Feature Title",
   "description": "Feature description",
-  "prd_text": "Detailed PRD/TRD text",
-  "source_file": "eu_dsa.pdf" // Optional
+  "prd_text": "Detailed PRD/TRD text"
 }
 ```
 
@@ -817,8 +809,7 @@ Analyzes feature for regulatory compliance
     "confidence": 0.85,
     "reasoning": "AI analysis explanation...",
     "regulations": ["EU Digital Services Act"],
-    "age": "Under 18|All Ages",
-    "risk_level": "High|Medium|Low"
+    "age": "Under 18|All Ages"
   },
   "raw_analysis": "Full AI response...",
   "retrieved_documents": 3,
@@ -835,7 +826,6 @@ Analyzes feature for regulatory compliance
 - Full-stack AI integration with Ollama + Qdrant
 - Real regulatory document analysis
 - Clean UI without hardcoded data
-- Confidence scoring and risk assessment
 - Full analysis viewing capability
 - Environment-based configuration
 - Health monitoring and error handling
