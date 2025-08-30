@@ -44,7 +44,7 @@ All regulatory embeddings are stored in **Qdrant**, a high-performance vector da
 
 ```python
 # Preprocessing Pipeline
-1. Document Chunking → Custom Python logic (no LangChain)
+1. Document Chunking → Custom Python logic 
 2. Embedding Generation → mxbai-embed-large model via Ollama
 3. Vector Storage → Qdrant cloud instance
 4. Retrieval Optimization → Top-K similarity search
