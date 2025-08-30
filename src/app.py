@@ -108,13 +108,10 @@ def parse_analysis_response(response_text, title, description):
     # Determine flag based on response content
     if any(word in response_lower for word in ['violation', 'violates', 'non-compliant', 'illegal', 'prohibited']):
         flag = 'Yes'
-        confidence = 0.85
     elif any(word in response_lower for word in ['compliant', 'legal', 'allowed', 'permitted', 'no violation']):
         flag = 'No' 
-        confidence = 0.90
     else:
         flag = 'Maybe'
-        confidence = 0.65
         
     # Extract mentioned regulations (simple keyword matching)
     regulations = []
@@ -146,7 +143,6 @@ def parse_analysis_response(response_text, title, description):
         "title": title,
         "description": description,
         "flag": flag,
-        "confidence": confidence,
         "regulations": regulations,
         "reasoning": reasoning[:300] + "..." if len(reasoning) > 300 else reasoning,
         "age": age_group,
@@ -157,8 +153,7 @@ def parse_analysis_response(response_text, title, description):
         "business_impact": "Requires legal review for compliance",
         "technical_complexity": "Medium - May require implementation changes",
         "rollout_timeline": "4-6 weeks including compliance review",
-        "stakeholders": ["Legal Team", "Compliance", "Product Team"],
-        "risk_level": "High" if flag == "Yes" else "Medium" if flag == "Maybe" else "Low"
+        "stakeholders": ["Legal Team", "Compliance", "Product Team"]
     }
 
 @app.route('/api/parse', methods=['POST'])
@@ -403,8 +398,6 @@ def create_email_body(feature, raw_analysis):
             <div class="section">
                 <h2>Compliance Assessment</h2>
                 <p><span class="label">Regulatory Flag:</span><span class="value flag-{feature.get('flag', 'maybe').lower()}">{feature.get('flag', 'N/A')}</span></p>
-                <p><span class="label">Confidence Level:</span><span class="value">{round(feature.get('confidence', 0) * 100)}%</span></p>
-                <p><span class="label">Risk Level:</span><span class="value">{feature.get('risk_level', 'N/A')}</span></p>
                 <p><span class="label">Age Group:</span><span class="value">{feature.get('age', 'N/A')}</span></p>
             </div>
             

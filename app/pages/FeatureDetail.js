@@ -6,7 +6,6 @@ export function FeatureDetail({ featureId }) {
       title: 'Teen Sleep Mode (US)',
       description: 'Feature that restricts app usage for users under 18 during night hours (10 PM - 6 AM), requiring parental consent to override. This includes push notification restrictions, content feed limitations, and direct messaging controls during these hours.',
       flag: 'Yes',
-      confidence: 0.88,
       regulations: ['UT Social Media Act', 'FL Online Protections', 'CA Protecting Our Kids'],
       created_at: '2025-08-26T10:30:00Z',
       review_status: 'none',
@@ -15,15 +14,13 @@ export function FeatureDetail({ featureId }) {
       business_impact: 'Medium - May reduce engagement but improves compliance',
       technical_complexity: 'Medium - Requires age verification integration',
       rollout_timeline: '3-4 weeks',
-      stakeholders: ['Legal Team', 'Product Safety', 'Engineering'],
-      risk_level: 'High'
+      stakeholders: ['Legal Team', 'Product Safety', 'Engineering']
     },
     'feat_002': {
       id: 'feat_002', 
       title: 'Geofence US Rollout for Market Testing',
       description: 'Limit feature availability to US users only for initial market testing and performance evaluation. This allows controlled rollout and data collection before global expansion.',
       flag: 'No',
-      confidence: 0.93,
       regulations: [],
       created_at: '2025-08-27T14:15:00Z',
       review_status: 'none',
@@ -32,15 +29,13 @@ export function FeatureDetail({ featureId }) {
       business_impact: 'Low - Testing phase only',
       technical_complexity: 'Low - Simple geolocation check',
       rollout_timeline: '1-2 weeks',
-      stakeholders: ['Product Team', 'Engineering', 'Analytics'],
-      risk_level: 'Low'
+      stakeholders: ['Product Team', 'Engineering', 'Analytics']
     },
     'feat_003': {
       id: 'feat_003',
       title: 'Filter Available Globally Except KR',
       description: 'New content filter available worldwide except in South Korea due to unclear regulatory requirements. Filter includes AI-powered content moderation and user reporting enhancements.',
       flag: 'Maybe',
-      confidence: 0.55,
       regulations: [],
       created_at: '2025-08-28T09:45:00Z',
       review_status: 'overridden',
@@ -49,15 +44,13 @@ export function FeatureDetail({ featureId }) {
       business_impact: 'Medium - Improves safety but excludes KR market',
       technical_complexity: 'High - Complex AI integration',
       rollout_timeline: '6-8 weeks',
-      stakeholders: ['Legal Team', 'Safety Team', 'AI/ML Team'],
-      risk_level: 'Medium'
+      stakeholders: ['Legal Team', 'Safety Team', 'AI/ML Team']
     },
     'feat_004': {
       id: 'feat_004',
       title: 'Age Verification for EU Users',
       description: 'Implement mandatory age verification for users in European Union countries to comply with GDPR requirements. Uses third-party verification service with privacy-preserving technology.',
       flag: 'Yes',
-      confidence: 0.95,
       regulations: ['GDPR Article 8', 'EU Digital Services Act'],
       created_at: '2025-08-25T16:20:00Z',
       review_status: 'approved',
@@ -66,8 +59,7 @@ export function FeatureDetail({ featureId }) {
       business_impact: 'High - Required for EU compliance',
       technical_complexity: 'High - Third-party integration required',
       rollout_timeline: '8-10 weeks',
-      stakeholders: ['Legal Team', 'Privacy Team', 'Engineering', 'Compliance'],
-      risk_level: 'Critical'
+      stakeholders: ['Legal Team', 'Privacy Team', 'Engineering', 'Compliance']
     }
   };
 
@@ -102,16 +94,6 @@ export function FeatureDetail({ featureId }) {
       case 'Yes': return '#ef4444';
       case 'No': return '#22c55e';
       case 'Maybe': return '#f59e0b';
-      default: return '#6b7280';
-    }
-  };
-
-  const getRiskColor = (risk) => {
-    switch(risk) {
-      case 'Critical': return '#dc2626';
-      case 'High': return '#ef4444';
-      case 'Medium': return '#f59e0b';
-      case 'Low': return '#22c55e';
       default: return '#6b7280';
     }
   };
@@ -154,9 +136,6 @@ export function FeatureDetail({ featureId }) {
               <span style="display: inline-block; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: white; background: ${getFlagColor(feature.flag)};">
                 ${feature.flag}
               </span>
-              <span style="display: inline-block; padding: 0.375rem 0.875rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500; color: ${getRiskColor(feature.risk_level)}; background: ${getRiskColor(feature.risk_level)}15;">
-                ${feature.risk_level} Risk
-              </span>
             </div>
             <p style="color: #6b7280; font-size: 1.125rem; line-height: 1.6; margin: 0;">${feature.description}</p>
           </div>
@@ -178,17 +157,7 @@ export function FeatureDetail({ featureId }) {
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem;">
               <h3 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.25rem; font-weight: 600;">Classification Details</h3>
               
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Confidence Score</label>
-                  <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="flex: 1; background: #f3f4f6; border-radius: 9999px; height: 8px;">
-                      <div style="width: ${feature.confidence * 100}%; background: #009995; height: 100%; border-radius: 9999px;"></div>
-                    </div>
-                    <span style="font-weight: 600; color: #1f2937;">${Math.round(feature.confidence * 100)}%</span>
-                  </div>
-                </div>
-                
+              <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
                 <div>
                   <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Review Status</label>
                   <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500; color: ${feature.review_status === 'approved' ? '#22c55e' : feature.review_status === 'overridden' ? '#f59e0b' : '#6b7280'}; background: ${feature.review_status === 'approved' ? '#22c55e' : feature.review_status === 'overridden' ? '#f59e0b' : '#6b7280'}15;">
