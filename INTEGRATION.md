@@ -1,27 +1,17 @@
-# 🔗 Frontend-Backend Integration Guide
+# Frontend-Backend Integration Guide
 
 This document explains the complete integration between frontend and backend in the GeoReg Compliance Classifier, including AI analysis with Ollama and Qdrant.
 
-## 🏗️ Architecture Overview
+## Data Flow Architecture
 
-```
-┌─────────────────┐    HTTP/JSON     ┌─────────────────┐    Vector Search    ┌─────────────────┐
-│                 │    API Calls     │                 │                     │                 │
-│   Frontend      │◄────────────────►│   Backend       │◄───────────────────►│   Qdrant Cloud  │
-│   (Lynx JS)     │                  │   (Flask API)   │                     │   Vector DB     │
-│   Port: 3000    │                  │   Port: 5001    │                     │                 │
-│                 │                  │                 │                     └─────────────────┘
-└─────────────────┘                  └─────────────────┘
-         │                                    │
-         │                                    │
-         ▼                                    ▼
-┌─────────────────┐                  ┌─────────────────┐
-│   Vite Dev      │                  │   Ollama AI     │
-│   Server        │                  │   Local Models  │
-│                 │                  │   - mxbai-embed │
-└─────────────────┘                  │   - llama3.1:8b │
-                                     └─────────────────┘
-```
+![System Architecture](architecture_overview.png)
+
+The architecture consists of four main components:
+
+- **Frontend (Lynx JS)** - Port 3000: User interface built with Lynx JS and served by Vite dev server
+- **Backend (Flask API)** - Port 5001: Python Flask API handling HTTP/JSON requests
+- **Qdrant Cloud Vector DB**: Cloud-hosted vector database for regulatory document retrieval
+- **Ollama AI Local Models**: Local AI stack with mxbai-embed and llama3.1:8b models for analysis
 
 ## Complete Setup Guide
 
@@ -116,7 +106,7 @@ npm run dev
   }
   ```
 
-## 📡 API Integration Details
+## API Integration Details
 
 ### Backend API Endpoints
 
@@ -186,7 +176,7 @@ curl -X POST http://localhost:5001/api/analyze \
 }
 ```
 
-## 🧠 AI Analysis Pipeline
+## AI Analysis Pipeline
 
 ### 1. Document Embedding & Retrieval
 
@@ -225,7 +215,7 @@ classification = {
 }
 ```
 
-## 🔧 Configuration Details
+## Configuration Details
 
 ### Environment Variables
 
@@ -247,35 +237,7 @@ FLASK_DEBUG=false
 - **ncmec.pdf** → `ncmec_collection`
 - **ca_poksmaa.pdf** → `ca_poksmaa_collection`
 
-## 🔄 Data Flow Architecture
-
-```
-User Input (Feature)
-       ↓
-Frontend Form Submission
-       ↓
-realAdapter.analyzeFeature()
-       ↓
-POST /api/analyze
-       ↓
-Flask API Handler
-       ↓
-main.retrieve_top_documents()
-       ↓
-Qdrant Vector Search
-       ↓
-main.formulate_response()
-       ↓
-Ollama AI Analysis
-       ↓
-parse_analysis_response()
-       ↓
-Structured JSON Response
-       ↓
-Frontend Result Display
-```
-
-## 🚨 Troubleshooting Integration
+## Troubleshooting Integration
 
 ### Backend Connection Issues
 
@@ -324,14 +286,14 @@ ls -la .env
 cd src && python3 -c "from dotenv import load_dotenv; load_dotenv(); import os; print(f'Qdrant: {os.getenv(\"QDRANT_ENDPOINT\")}')"
 ```
 
-## ⚡ Performance Considerations
+## Performance Considerations
 
 - **Analysis Speed**: ~10-15 seconds per feature (normal for AI processing)
 - **Qdrant Queries**: 3-5 document chunks retrieved per analysis
 - **Model Performance**: llama3.1:8b provides good balance of speed/quality
 - **Memory Usage**: Ollama models require ~8GB RAM minimum
 
-## 🔐 Security Notes
+## Security Notes
 
 - **API Keys**: Stored in .env file (never commit to git)
 - **CORS**: Enabled for localhost development only
@@ -351,7 +313,7 @@ For production deployment:
 5. **Monitor performance**: Add logging and metrics collection
 6. **Backup strategy**: Regular Qdrant collection backups
 
-## 📈 Future Enhancements
+## Future Enhancements
 
 - **Batch Processing**: Analyze multiple features simultaneously
 - **Document Upload**: PDF parsing and direct document analysis
@@ -362,7 +324,7 @@ For production deployment:
 
 5. **Frontend displays** → Results in Features table
 
-## 🔧 Configuration
+## Configuration
 
 ### Backend Settings
 
@@ -403,7 +365,7 @@ For production deployment:
 - Toast notifications for feedback
 - Seamless integration flow
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Backend Issues
 
@@ -418,7 +380,7 @@ For production deployment:
 - **Mock mode**: Backend automatically switches
 
 
-## 📝 Development Notes
+## Development Notes
 
 The integration provides:
 
