@@ -83,8 +83,7 @@ def parse_structured_feature_text(text):
     if not text or not isinstance(text, str):
         return None, None
     
-    lines = text.strip().split('
-')
+    lines = text.strip().split('\n')
     title = None
     description = None
     
