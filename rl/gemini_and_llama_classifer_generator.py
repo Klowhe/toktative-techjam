@@ -136,7 +136,7 @@ def retrieve_best_regulation_text(feature_description: str, top_k: int = 3):
     results = sorted([r for r in results if r["texts"]], key=lambda x: x["score"], reverse=True)
     return results
 
-def classify_stage(entities: str, regulation_context: str):
+def classify_stage(entities: str, feature_desc: str, regulation_context: str):
     """
     Classify feature as:
     - Yes: legal obligation
@@ -146,7 +146,10 @@ def classify_stage(entities: str, regulation_context: str):
     Output JSON with keys: classification, reasoning, related_regulation.
     """
     prompt = f"""
-    Entities extracted:
+    Feature Description:
+    {feature_desc}
+
+    Entities extracted from feature:
     {entities}
 
     Relevant regulation text:
@@ -158,7 +161,7 @@ def classify_stage(entities: str, regulation_context: str):
     Based on this information:
     1. Reference the terminology dictionary for technical terminologies and abbreviations.
     2. Answer "Yes" if feature required by law/regulation in specific regions, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
-    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions.
+    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions. Do not infer or guess a regulatory requirement unless the feature description or entities explicitly reference or clearly imply it.
     4. If any related regulation/article is relevant, mention it concisely, otherwise use "None".
 
     Based on all input, respond strictly in JSON **with exactly these keys**:
@@ -166,9 +169,7 @@ def classify_stage(entities: str, regulation_context: str):
     "reasoning": "1-2 sentence reasoning",
     "related_regulation": "main law or article name"
 
-    Rules:
     - Do not create lists or nested objects. Combine all reasoning into one string.
-    - Do not infer regulatory requirements if none are explicitly mentioned in the feature description or extracted entities.
     """
     messages = [
         {"role": "system", "content": "You are a compliance classifier."},
@@ -176,7 +177,7 @@ def classify_stage(entities: str, regulation_context: str):
     ]
     return chat_with_ollama(messages)
 
-def classify_stage_gemini(entities: str, regulation_context: str):
+def classify_stage_gemini(entities: str, regulation_context: str, feature_desc: str):
     """
     Use Gemini to classify feature as legal obligation/business-only/unclear.
     Output JSON with keys: classification, reasoning, related_regulation.
@@ -187,7 +188,10 @@ def classify_stage_gemini(entities: str, regulation_context: str):
         model_name = "models/gemini-2.0-flash-exp"
         model = genai.GenerativeModel(model_name)
         prompt = f"""
-        Entities extracted:
+        Feature Description:
+        {feature_desc}
+
+        Entities extracted from feature:
         {entities}
 
         Relevant regulation text:
@@ -199,19 +203,21 @@ def classify_stage_gemini(entities: str, regulation_context: str):
         Based on this information:
         1. Reference the terminology dictionary for technical terminologies and abbreviations.
         2. Answer "Yes" if feature required by law/regulation in specific regions, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
-        3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions.
+        3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions. Do not infer or guess a regulatory requirement unless the feature description or entities explicitly reference or clearly imply it.
         4. If any related regulation/article is relevant, mention it concisely, otherwise use "None".
 
-        Respond strictly in JSON format with keys: classification ("Yes", "No", "Maybe"), reasoning, related_regulation.
+        Based on all input, respond strictly in JSON **with exactly these keys**:
+        "classification": "Yes" | "No" | "Maybe",
+        "reasoning": "1-2 sentence reasoning",
+        "related_regulation": "main law or article name"
+
+        - Do not create lists or nested objects. Combine all reasoning into one string.
         """
         response = model.generate_content(prompt)
         # --- Clean Gemini output before parsing ---
         text = response.text.strip()
-        # Remove code block markers if present
         if text.startswith("```"):
-            # Remove first line (e.g., ```json) and last line (```)
             lines = text.splitlines()
-            # Remove lines starting/ending with ```
             lines = [line for line in lines if not line.strip().startswith("```") and not line.strip().endswith("```")]
             text = "\n".join(lines).strip()
         try:
@@ -266,7 +272,7 @@ if __name__ == "__main__":
 
             # Step 3: Classification (Ollama)
             import json
-            classification = classify_stage(entities, regulation_context)
+            classification = classify_stage(entities, feature_description, regulation_context)
             try:
                 ollama_result = json.loads(classification)
                 ollama_cls = ollama_result.get("classification", "")
@@ -275,13 +281,19 @@ if __name__ == "__main__":
                 ollama_cls = "Maybe"
 
             # Step 4: Classification (Gemini)
-            gemini_result = classify_stage_gemini(entities, regulation_context)
+            gemini_result = classify_stage_gemini(entities, regulation_context, feature_description)
             gemini_cls = gemini_result.get("classification", "")
             if gemini_cls == "":
                 print(f"Gemini classification is empty for feature '{feature_name}'. Reasoning: {gemini_result.get('reasoning', '')}")
 
             # Step 5: Reward calculation
             reward = compute_reward(ollama_result, gemini_result)
+
+            # Debug output for each row
+            print(f"[DEBUG] Row {idx}: feature_name='{feature_name}'")
+            print(f"        Ollama classification: {ollama_cls}")
+            print(f"        Gemini classification: {gemini_cls}")
+            print(f"        Reward: {reward}")
 
             # Store result
             results.append({
@@ -292,6 +304,7 @@ if __name__ == "__main__":
                 "reward": reward
             })
         except Exception as e:
+            print(f"[ERROR] Row {idx}: feature_name='{feature_name}' Exception: {e}")
             results.append({
                 "feature_name": feature_name,
                 "feature_description": feature_description,
