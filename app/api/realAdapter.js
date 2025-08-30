@@ -47,7 +47,6 @@ export class RealApiAdapter {
         feature: data.feature,
         metadata: {
           raw_analysis: data.raw_analysis,
-          retrieved_documents: data.retrieved_documents,
           timestamp: new Date().toISOString()
         }
       };

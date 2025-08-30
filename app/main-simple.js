@@ -111,7 +111,6 @@ function setupUploadHandler() {
             window.rawAnalysis = result.raw_analysis;
             window.lastAnalysisMetadata = {
               raw_analysis: result.raw_analysis,
-              retrieved_documents: result.retrieved_documents,
               mode: result.mode
             };
             
@@ -328,9 +327,7 @@ function exportDetails(featureId) {
     ['Feature Title', feature.title],
     ['Description', feature.description],
     ['Regulatory Flag', feature.flag],
-    ['Confidence', `${Math.round(feature.confidence * 100)}%`],
     ['Age Group', feature.age],
-    ['Risk Level', feature.risk_level],
     ['Analysis Date', new Date(feature.created_at).toLocaleString()],
     ['Reasoning', feature.reasoning],
     ['Regulations', feature.regulations?.join('; ') || 'None'],

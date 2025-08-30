@@ -155,28 +155,6 @@ export function Features(analyzedFeature = null) {
                           <h4 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">AI Analysis Results</h4>
                           <div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
                             <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Analysis Confidence</label>
-                              <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <div style="flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden;">
-                                  <div style="height: 100%; background: ${feature.confidence > 0.8 ? '#22c55e' : feature.confidence > 0.6 ? '#f59e0b' : '#ef4444'}; width: ${(feature.confidence * 100)}%; border-radius: 4px;"></div>
-                                </div>
-                                <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">${Math.round(feature.confidence * 100)}%</span>
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Risk Level</label>
-                              <span style="display: inline-block; padding: 0.375rem 0.875rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500; color: white; background: ${feature.risk_level === 'High' ? '#ef4444' : feature.risk_level === 'Medium' ? '#f59e0b' : '#22c55e'};">
-                                ${feature.risk_level || 'Not assessed'}
-                              </span>
-                            </div>
-
-                            <div>
-                              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Retrieved Documents</label>
-                              <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">Analysis based on ${window.lastAnalysisMetadata?.retrieved_documents || 'N/A'} relevant regulatory documents</p>
-                            </div>
-
-                            <div>
                               <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Analysis Date</label>
                               <p style="color: #1f2937; margin: 0; font-size: 0.875rem;">${formatDate(feature.created_at)}</p>
                             </div>
