@@ -10,7 +10,7 @@ load_dotenv()
 
 # ---------------------- CONFIG ----------------------
 MODEL_ID = "meta-llama/LLaMA-3.1-8B"  # Hugging Face model
-OUTPUT_DIR = "models/llama3.1-8b-lora-rlhf"
+OUTPUT_DIR = "models/llama3.1-8b-lora-rlhf" #output directory on where to save the final model
 BATCH_SIZE = 4
 EPOCHS = 3
 LR = 1e-4
@@ -18,7 +18,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # ---------------------- LOAD DATA ----------------------
-df = pd.read_csv("/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/rl_input.csv")
+df = pd.read_csv("/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/rl_input.csv") #directory to rl_input.csv
 
 # Scale total_reward to [0,1] for stable training
 df['reward_scaled'] = (df['total_reward'] - df['total_reward'].min()) / max(1e-5, df['total_reward'].max() - df['total_reward'].min())
