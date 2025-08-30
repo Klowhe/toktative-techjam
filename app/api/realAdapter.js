@@ -6,7 +6,7 @@ const API_BASE_URL = currentConfig.API_BASE_URL;
 export class RealApiAdapter {
   async analyzeFeature(featureData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/analyze_feature`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
