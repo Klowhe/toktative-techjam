@@ -9,3 +9,7 @@ __pycache__/
 # Virtual environments
 venv/
 env/
+.venv/
+
+node_modules/
+
