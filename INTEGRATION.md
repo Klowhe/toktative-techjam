@@ -26,19 +26,23 @@ This document explains the complete integration between frontend and backend in 
 ## Complete Setup Guide
 
 ### Prerequisites
+
 - Node.js 16+ and npm
 - Python 3.8+ and pip
 - Homebrew (macOS)
 - Git
 
 ### 1. Repository Setup
+
 ```bash
 git clone <repository-url>
 cd toktative-techjam
 ```
 
 ### 2. Environment Configuration
+
 Create `.env` file in root directory:
+
 ```env
 QDRANT_API_KEY="your-qdrant-api-key"
 QDRANT_ENDPOINT="your-qdrant-endpoint-url"
@@ -47,11 +51,13 @@ QDRANT_ENDPOINT="your-qdrant-endpoint-url"
 ### 3. Install Dependencies
 
 **Frontend:**
+
 ```bash
 npm install
 ```
 
 **Backend:**
+
 ```bash
 pip3 install -r requirements.txt
 ```
@@ -59,12 +65,14 @@ pip3 install -r requirements.txt
 ### 4. Install AI Stack
 
 **Install Ollama:**
+
 ```bash
 brew install ollama
 brew services start ollama
 ```
 
 **Download AI Models:**
+
 ```bash
 ollama pull mxbai-embed-large    # Embedding model
 ollama pull llama3.1:8b          # Chat model
@@ -73,6 +81,7 @@ ollama pull llama3.1:8b          # Chat model
 ### 5. Start Services
 
 **Option A: Automated Start**
+
 ```bash
 chmod +x start.sh
 ./start.sh
@@ -81,17 +90,20 @@ chmod +x start.sh
 **Option B: Manual Start**
 
 Backend (Terminal 1):
+
 ```bash
 cd src
 nohup python3 app.py > backend.log 2>&1 &
 ```
 
 Frontend (Terminal 2):
+
 ```bash
 npm run dev
 ```
 
 ### 6. Verify Setup
+
 - Frontend: http://localhost:3000
 - Backend Health: http://localhost:5001/health
 - Expected health response:
@@ -108,15 +120,16 @@ npm run dev
 
 ### Backend API Endpoints
 
-| Endpoint | Method | Description | Response |
-|----------|---------|-------------|----------|
-| `/health` | GET | Backend health check | Status, config info |
-| `/api/analyze` | POST | Analyze feature for compliance | Full AI analysis |
-| `/api/sources` | GET | Get available regulatory sources | Source list |
+| Endpoint       | Method | Description                      | Response            |
+| -------------- | ------ | -------------------------------- | ------------------- |
+| `/health`      | GET    | Backend health check             | Status, config info |
+| `/api/analyze` | POST   | Analyze feature for compliance   | Full AI analysis    |
+| `/api/sources` | GET    | Get available regulatory sources | Source list         |
 
 ### Frontend-Backend Communication
 
 The frontend (`app/api/realAdapter.js`) handles:
+
 ### Current Integration Features
 
 - **Direct API calls** to Flask backend
@@ -127,9 +140,11 @@ The frontend (`app/api/realAdapter.js`) handles:
 ### API Request/Response Examples
 
 #### Health Check
+
 ```bash
 curl http://localhost:5001/health
 ```
+
 ```json
 {
   "backend_available": true,
@@ -140,6 +155,7 @@ curl http://localhost:5001/health
 ```
 
 #### Feature Analysis
+
 ```bash
 curl -X POST http://localhost:5001/api/analyze \
   -H "Content-Type: application/json" \
@@ -151,6 +167,7 @@ curl -X POST http://localhost:5001/api/analyze \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -158,24 +175,21 @@ curl -X POST http://localhost:5001/api/analyze \
     "id": "feat_abc123",
     "title": "Teen Sleep Mode",
     "description": "Restrict app usage for under 18 during night hours",
-    "flag": "Maybe",
-    "confidence": 0.65,
-    "reasoning": "Feature meets requirements for protecting minors online...",
-    "regulations": ["EU Privacy Directive"],
+    "flag": "Yes",
+    "reasoning": "This feature is required by law to protect minors online during nighttime hours in several jurisdictions.",
+    "regulations": ["EU Digital Services Act", "California Senate Bill 976"],
     "age": "Under 18",
-    "regions_affected": ["European Union"],
-    "risk_level": "Medium",
+    "regions_affected": ["EU", "CA"],
     "created_at": "2025-08-29T09:40:34.892961"
   },
-  "raw_analysis": "Detailed AI analysis explanation...",
-  "retrieved_documents": 3,
-  "mode": "ai"
+  "raw_analysis": "{...full AI JSON output...}"
 }
 ```
 
 ## 🧠 AI Analysis Pipeline
 
 ### 1. Document Embedding & Retrieval
+
 ```python
 # Generate embedding for user's feature
 query_embedding = get_embedding(feature_text)
@@ -189,6 +203,7 @@ relevant_docs = qdrant_client.search(
 ```
 
 ### 2. AI Analysis Generation
+
 ```python
 # Send context + query to Ollama
 response = generate_response(
@@ -198,19 +213,22 @@ response = generate_response(
 ```
 
 ### 3. Response Processing
+
 ```python
 # Parse AI response into structured data
 classification = {
     "flag": extract_compliance_flag(response),
-    "confidence": calculate_confidence(response),
     "reasoning": extract_reasoning(response),
-    "regulations": identify_regulations(response)
+    "regulations": identify_regulations(response),
+    "age": extract_age_group(response),
+    "regions_affected": extract_regions(response)
 }
 ```
 
 ## 🔧 Configuration Details
 
 ### Environment Variables
+
 ```env
 # Required for Qdrant vector database
 QDRANT_API_KEY="your-api-key"
@@ -222,8 +240,9 @@ FLASK_DEBUG=false
 ```
 
 ### Regulatory Document Collections
+
 - **eu_dsa.pdf** → `eu_dsa_collection`
-- **fl_bill.pdf** → `fl_bill_collection`  
+- **fl_bill.pdf** → `fl_bill_collection`
 - **utah_regulation_act.pdf** → `utah_regulation_collection`
 - **ncmec.pdf** → `ncmec_collection`
 - **ca_poksmaa.pdf** → `ca_poksmaa_collection`
@@ -231,7 +250,7 @@ FLASK_DEBUG=false
 ## 🔄 Data Flow Architecture
 
 ```
-User Input (Feature) 
+User Input (Feature)
        ↓
 Frontend Form Submission
        ↓
@@ -259,6 +278,7 @@ Frontend Result Display
 ## 🚨 Troubleshooting Integration
 
 ### Backend Connection Issues
+
 ```bash
 # Check if backend is running
 curl http://localhost:5001/health
@@ -271,6 +291,7 @@ brew services list | grep ollama
 ```
 
 ### AI Model Issues
+
 ```bash
 # Restart Ollama service
 brew services restart ollama
@@ -284,6 +305,7 @@ ollama run llama3.1:8b "Hello, test message"
 ```
 
 ### Frontend API Issues
+
 ```bash
 # Check if frontend can reach backend
 curl -v http://localhost:5001/health
@@ -293,6 +315,7 @@ curl -v http://localhost:5001/health
 ```
 
 ### Environment Issues
+
 ```bash
 # Verify .env file exists
 ls -la .env
@@ -322,7 +345,7 @@ cd src && python3 -c "from dotenv import load_dotenv; load_dotenv(); import os; 
 For production deployment:
 
 1. **Use production WSGI server**: Replace Flask dev server with Gunicorn
-2. **Enable HTTPS**: SSL certificates for API endpoints  
+2. **Enable HTTPS**: SSL certificates for API endpoints
 3. **Add authentication**: User sessions and API authentication
 4. **Scale Ollama**: Consider GPU acceleration for faster inference
 5. **Monitor performance**: Add logging and metrics collection
@@ -336,17 +359,20 @@ For production deployment:
 - **Audit Trail**: Complete compliance decision history
 - **Multi-language**: Support for non-English regulatory documents
 - **Custom Models**: Fine-tuned models for specific regulatory domains
+
 5. **Frontend displays** → Results in Features table
 
 ## 🔧 Configuration
 
 ### Backend Settings
+
 - **Flask API**: `src/app.py`
 - **Ollama URL**: `http://localhost:11434`
 - **Qdrant**: Vector database for document retrieval
 - **Models**: `mxbai-embed-large`, `llama3.1:8b`
 
 ### Frontend Settings
+
 - **API Base URL**: `http://localhost:5000/api`
 - **Real API Adapter**: `app/api/realAdapter.js`
 - **Auto-fallback**: Mock mode when backend unavailable
@@ -356,6 +382,7 @@ For production deployment:
 ## Features
 
 ### Real AI Analysis
+
 - Document embedding and retrieval
 - LLM-powered compliance reasoning
 - Structured classification output
@@ -363,6 +390,7 @@ For production deployment:
 - Real document analysis using Ollama and Qdrant
 
 ### Graceful Degradation
+
 - Backend health monitoring
 - Automatic fallback to mock data
 - Clear status indicators
@@ -370,6 +398,7 @@ For production deployment:
 - Clear error messages and user feedback
 
 ### User Experience
+
 - Loading states during analysis
 - Toast notifications for feedback
 - Seamless integration flow
@@ -377,23 +406,22 @@ For production deployment:
 ## 🐛 Troubleshooting
 
 ### Backend Issues
+
 - **Ollama not running**: Start Ollama service
 - **Qdrant connection**: Check vector database
 - **Dependencies**: Run `pip install -r requirements.txt`
 
 ### Frontend Issues
+
 - **CORS errors**: Backend includes CORS headers
 - **API timeout**: Check backend logs
 - **Mock mode**: Backend automatically switches
 
-### Status Indicators
-- **Green**: AI Backend Online
-- **Yellow**: Backend Offline (Mock Mode)
-- 🔴 **Red**: Critical error
 
 ## 📝 Development Notes
 
 The integration provides:
+
 - **Type safety** with structured API responses
 - **Error handling** with graceful fallbacks
 - **Real-time status** monitoring
