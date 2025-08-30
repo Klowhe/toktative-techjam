@@ -74,35 +74,51 @@ def health_check():
 
 def parse_structured_feature_text(text):
     """
-    Parse structured feature input that may contain formats like:
-    Feature Title: Some title
-    Description: Some description
+    Parse structured feature input that contains:
+    Feature Title: [title text]
+    Description: [description text that may span multiple lines]
     
-    Or similar structured formats with colons as separators.
+    Extracts everything after "Feature Title:" until "Description:" as title,
+    and everything after "Description:" as description.
     """
     if not text or not isinstance(text, str):
         return None, None
     
-    lines = text.strip().split('\n')
+    text = text.strip()
     title = None
     description = None
     
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-            
-        # Look for title patterns
-        if line.lower().startswith(('feature title:', 'title:', 'feature name:', 'name:')):
-            title_part = line.split(':', 1)
-            if len(title_part) > 1:
-                title = title_part[1].strip()
+    # Find Feature Title pattern
+    title_pattern = "Feature Title:"
+    desc_pattern = "Description:"
+    
+    title_pos = text.find(title_pattern)
+    desc_pos = text.find(desc_pattern)
+    
+    if title_pos != -1:
+        # Extract title: everything after "Feature Title:" until "Description:" (or end of text)
+        title_start = title_pos + len(title_pattern)
         
-        # Look for description patterns
-        elif line.lower().startswith(('description:', 'desc:', 'feature description:')):
-            desc_part = line.split(':', 1)
-            if len(desc_part) > 1:
-                description = desc_part[1].strip()
+        if desc_pos != -1 and desc_pos > title_pos:
+            # Title ends where Description starts
+            title_end = desc_pos
+        else:
+            # No description found, title goes to end
+            title_end = len(text)
+        
+        title = text[title_start:title_end].strip()
+        # Remove any trailing newlines
+        title = title.replace('\n', ' ').replace('\r', ' ')
+        # Clean up multiple spaces
+        title = ' '.join(title.split())
+    
+    if desc_pos != -1:
+        # Extract description: everything after "Description:"
+        desc_start = desc_pos + len(desc_pattern)
+        description = text[desc_start:].strip()
+        # Keep the description as is, just clean up leading/trailing whitespace
+        # but preserve paragraph structure if needed
+        description = description.strip()
     
     return title, description
 
@@ -350,37 +366,45 @@ def parse_docx(file):
 def extract_feature_info(text):
     """
     Extract structured feature information from document text
+    Uses the same parsing logic as the analyze endpoint for consistency.
     """
+    # First try our structured parsing function
+    title, description = parse_structured_feature_text(text)
+    
+    # If structured parsing worked, use those results
+    if title and description:
+        return {
+            "title": title,
+            "description": description,
+            "prd_text": text,
+            "parsing_method": "structured"
+        }
+    
+    # Fallback to regex patterns if structured parsing didn't work
     # Clean up text - preserve structure but normalize whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
+    text_for_regex = re.sub(r'\s+', ' ', text).strip()
     
     # Initialize defaults
     title = "Extracted Feature"
     description = "Feature extracted from uploaded document"
-    requirements = ""
     
-    # Enhanced patterns to handle various formats including yours
+    # Enhanced patterns to handle various formats
     title_patterns = [
-        r'(?:feature\s*title|title)\s*[:"]\s*([^,"\n]+?)(?:\s*[,"]|$)',  # Feature Title:" I WANNA SLEEP
+        r'(?:feature\s*title|title)\s*[:"]\s*([^,"\n]+?)(?:\s*[,"]|$)',
         r'(?:feature\s*title|title):\s*([^\n,]+)',
         r'(?:feature\s*name|name):\s*([^\n,]+)',
         r'^([^:\n]{3,80})(?:\s*[,\n]|$)',  # First line if reasonable length
     ]
     
     description_patterns = [
-        r'(?:description|desc)\s*[:"]\s*([^,"\n]+?)(?:\s*[,"]|(?:\s*"Requirements))',  # "Description:"SLAY,
+        r'(?:description|desc)\s*[:"]\s*([^,"\n]+?)(?:\s*[,"]|(?:\s*"Requirements))',
         r'(?:description|summary|overview):\s*([^\n,]{3,300})',
         r'(?:brief|short\s+description):\s*([^\n,]{3,300})',
     ]
     
-    requirements_patterns = [
-        r'(?:requirements|reqs?)\s*[:"]\s*([^,"\n]+?)(?:\s*[,"]|$)',  # "Requirements:" UNSLAY
-        r'(?:requirements|reqs?):\s*([^\n,]{3,500})',
-    ]
-    
-    # Extract title
+    # Try regex patterns as fallback
     for pattern in title_patterns:
-        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        match = re.search(pattern, text_for_regex, re.IGNORECASE | re.MULTILINE)
         if match:
             extracted_title = match.group(1).strip().strip('"').strip()
             if len(extracted_title) >= 3:  # Minimum meaningful length
@@ -389,51 +413,28 @@ def extract_feature_info(text):
     
     # Extract description
     for pattern in description_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+        match = re.search(pattern, text_for_regex, re.IGNORECASE)
         if match:
             extracted_desc = match.group(1).strip().strip('"').strip()
             if len(extracted_desc) >= 3:  # Minimum meaningful length
                 description = extracted_desc[:300]
                 break
     
-    # Extract requirements
-    for pattern in requirements_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            extracted_reqs = match.group(1).strip().strip('"').strip()
-            if len(extracted_reqs) >= 3:  # Minimum meaningful length
-                requirements = extracted_reqs[:500]
-                break
-    
     # If no specific description found, try to get meaningful content
     if description == "Feature extracted from uploaded document":
         # Look for sentences that aren't the title
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r'[.!?]+', text_for_regex)
         for sentence in sentences:
             sentence = sentence.strip()
             if len(sentence) > 20 and sentence.lower() != title.lower():
                 description = sentence[:300]
                 break
     
-    # Build comprehensive content
-    content_parts = []
-    if title and title != "Extracted Feature":
-        content_parts.append(f"Title: {title}")
-    if description and description != "Feature extracted from uploaded document":
-        content_parts.append(f"Description: {description}")
-    if requirements:
-        content_parts.append(f"Requirements: {requirements}")
-    
-    # If we have structured parts, use them; otherwise fall back to raw text
-    if content_parts:
-        content = "\n\n".join(content_parts)
-    else:
-        content = text[:2000] + "..." if len(text) > 2000 else text
-    
     return {
         "title": title,
         "description": description,
-        "content": content
+        "prd_text": text,
+        "parsing_method": "regex_fallback"
     }
 
 @app.route('/api/send-email', methods=['POST'])
