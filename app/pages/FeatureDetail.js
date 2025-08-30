@@ -104,7 +104,6 @@ export function FeatureDetail({ featureId }) {
             </div>
 
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem;">
-              <h3 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.25rem; font-weight: 600;">AI Analysis</h3>
               
               <div>
                 <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.5rem;">Reasoning</label>

@@ -6,14 +6,14 @@ export function Upload() {
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h1 style="color: #FF3361; font-size: 1.5rem; font-weight: bold; margin: 0;">GeoReg Classifier</h1>
           <div style="display: flex; gap: 0; align-items: center; position: relative;">
-            <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 60px; justify-content: center;">
-              <button onclick="navigateTo('/upload')" style="padding: 0.75rem 1.5rem; background: transparent; color: white; border: none; cursor: pointer; font-size: 0.875rem;">Upload</button>
-              <div style="width: 25%; height: 4px; background: #009995; border-radius: 2px; position: absolute; bottom: 8px;"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 60px; justify-content: center; width: 100px;">
+              <button onclick="navigateTo('/upload')" style="padding: 0.75rem 1.5rem; background: transparent; color: white; border: none; cursor: pointer; font-size: 0.875rem; width: 100%;">Upload</button>
+              <div style="width: 50%; height: 4px; background: #009995; border-radius: 2px; position: absolute; bottom: 8px;"></div>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 60px; justify-content: center;">
-              <button onclick="navigateTo('/features')" style="padding: 0.75rem 1.5rem; background: transparent; color: #88898a; border: none; cursor: pointer; font-size: 0.875rem;">Features</button>
+            <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 60px; justify-content: center; width: 100px;">
+              <button onclick="navigateTo('/features')" style="padding: 0.75rem 1.5rem; background: transparent; color: #88898a; border: none; cursor: pointer; font-size: 0.875rem; width: 100%;">Features</button>
             </div>
-            <button onclick="logout()" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: auto;">Logout</button>
+            <button onclick="logout()" style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 2rem;">Logout</button>
           </div>
         </div>
       </nav>
