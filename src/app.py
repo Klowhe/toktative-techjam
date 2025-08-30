@@ -12,6 +12,7 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import json
 
 # Load environment variables
 load_dotenv()
@@ -19,9 +20,15 @@ load_dotenv()
 # Add src directory to path for imports
 sys.path.append(os.path.dirname(__file__))
 
+# Add project root to sys.path for rl imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 # Import backend modules
 from main import retrieve_top_documents, formulate_response
 from config.collections import SOURCE_COLLECTION_MAP
+from rl.llama_reasoning_generation import extract_entities, retrieve_best_regulation_text, classify_stage
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
@@ -66,33 +73,64 @@ def analyze_feature():
             return jsonify({"error": "Title and description are required"}), 400
             
         # Combine all text for analysis
-        query_text = f"Feature: {title}\nDescription: {description}"
-        if prd_text:
-            query_text += f"\nDetailed Requirements: {prd_text}"
-            
-        # Use real AI backend
+        feature_desc = f"{title}\n{description}\n{prd_text}" if prd_text else f"{title}\n{description}"
+
+        # Step 1: Extract entities
+        entities_json = extract_entities(title, description)
         try:
-            # Retrieve relevant documents
-            top_results = retrieve_top_documents(query_text, source_file, top_k=5)
-            
-            # Generate compliance analysis
-            analysis_response = formulate_response(top_results, query_text)
-            
-            # Parse response to extract classification info
-            classification_result = parse_analysis_response(analysis_response, title, description)
-            
-            return jsonify({
-                "success": True,
-                "feature": classification_result,
-                "raw_analysis": analysis_response,
-                "retrieved_documents": len(top_results),
-                "mode": "ai"
-            })
-        except Exception as ai_error:
-            print(f"AI backend error: {ai_error}")
-            traceback.print_exc()
-            return jsonify({"error": f"AI analysis failed: {str(ai_error)}"}), 500
-        
+            entities = json.loads(entities_json)
+        except Exception:
+            entities = {}
+
+        # Step 2: Retrieve best regulation text
+        regulation_results = retrieve_best_regulation_text(description, entities, top_k=3)
+        if not regulation_results:
+            regulation_context = ""
+            related_regulation = ""
+            regions_affected = []
+        else:
+            regulation_context = "\n\n".join(
+                "\n\n".join(r["texts"]) for r in regulation_results
+            )
+            related_regulation = ", ".join(r["source_file"] for r in regulation_results)
+            regions_affected = [entities.get("location", "")] if entities.get("location", "") else []
+
+        # Step 3: Classification and Reasoning (LLM)
+        classification_json = classify_stage(entities, regulation_context)
+        try:
+            classification = json.loads(classification_json)
+        except Exception:
+            classification = {"classification": "Maybe", "reasoning": "LLM output not valid JSON", "related_regulation": ""}
+
+        # Compose output for frontend
+        result = {
+            "id": f"feat_{uuid.uuid4().hex[:8]}",
+            "title": title,
+            "description": description,
+            "flag": classification.get("classification", "Maybe"),
+            "confidence": 0.85 if classification.get("classification", "Maybe") == "Yes" else 0.65,
+            "reasoning": classification.get("reasoning", ""),
+            "age": ", ".join(entities.get("age", [])) if isinstance(entities.get("age", []), list) else entities.get("age", ""),
+            "related_regulation": classification.get("related_regulation", ""),
+            "regulations": [classification.get("related_regulation", "")] if classification.get("related_regulation", "") else [],
+            "regions_affected": regions_affected,
+            "created_at": datetime.now().isoformat(),
+            "review_status": "none",
+            "impact_assessment": f"Analysis suggests {classification.get('classification', 'Maybe').lower()} regulatory risk",
+            "business_impact": "Requires legal review for compliance",
+            "technical_complexity": "Medium - May require implementation changes",
+            "rollout_timeline": "4-6 weeks including compliance review",
+            "stakeholders": ["Legal Team", "Compliance", "Product Team"],
+            "risk_level": "High" if classification.get("classification", "Maybe") == "Yes" else "Medium" if classification.get("classification", "Maybe") == "Maybe" else "Low"
+        }
+
+        return jsonify({
+            "success": True,
+            "feature": result,
+            "raw_analysis": classification_json,
+            "retrieved_documents": len(regulation_results),
+            "mode": "ai"
+        })
     except Exception as e:
         print(f"Error in analyze_feature: {str(e)}")
         traceback.print_exc()

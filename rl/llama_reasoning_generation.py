@@ -66,31 +66,6 @@ SOURCE_COLLECTION_MAP = {
     "CA": "ca_regulation"
 }
 
-
-TERMINOLOGY_DICT = """
-Terminology Dictionary:
-- NR = Not recommended
-- PF = Personalized feed
-- GH = Geo-handler; a module responsible for routing features based on user region
-- CDS = Compliance Detection System
-- DRT = Data retention threshold; duration for which logs can be stored
-- LCP = Local compliance policy
-- Redline = Flag for legal review (different from its traditional business use for 'financial loss')
-- Softblock = A user-level limitation applied silently without notifications
-- Spanner = A synthetic name for a rule engine (not to be confused with Google Spanner)
-- ShadowMode = Deploy feature in non-user-impact way to collect analytics only
-- T5 = Tier 5 sensitivity data; more critical than T1‚ÄìT4 in this internal taxonomy
-- ASL = Age-sensitive logic
-- Glow = A compliance-flagging status, internally used to indicate geo-based alerts
-- NSP = Non-shareable policy (content should not be shared externally)
-- Jellybean = Feature name for internal parental control system
-- EchoTrace = Log tracing mode to verify compliance routing
-- BB = Baseline Behavior; standard user behavior used for anomaly detection
-- Snowcap = A synthetic codename for the child safety policy framework
-- FR = Feature rollout status
-- IMT = Internal monitoring trigger
-"""
-
 # ---------------------- Pipeline Steps ----------------------
 
 def extract_entities(feature_name: str, feature_description: str):
@@ -164,7 +139,7 @@ def retrieve_best_regulation_text(feature_description, entities, top_k):
     }]
 
 
-def classify_stage(entities: str, feature_desc: str, regulation_context: str):
+def classify_stage(entities: str, regulation_context: str):
     """
     Classify feature as:
     - Yes: legal obligation
@@ -174,30 +149,23 @@ def classify_stage(entities: str, feature_desc: str, regulation_context: str):
     Output JSON with keys: classification, reasoning, related_regulation.
     """
     prompt = f"""
-    Feature Description:
-    {feature_desc}
-
-    Entities extracted from feature:
+    Entities extracted:
     {entities}
 
     Relevant regulation text:
     {regulation_context}
 
-    Here is a terminology dictionary:
-    {TERMINOLOGY_DICT}
-
     Based on this information:
-    1. Reference the terminology dictionary for technical terminologies and abbreviations.
-    2. Answer "Yes" if feature required by law/regulation in specific regions, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
-    3. Provide a short reasoning (1-2 sentences) to whether this feature is required to comply with legal regulations of specific regions. Do not infer or guess a regulatory requirement unless the feature description or entities explicitly reference or clearly imply it.
-    4. If any related regulation/article is relevant, mention it concisely, otherwise use "None".
+    1. Answer "Yes" if required by law/regulation, "No" if it's only a business decision, or "Maybe" if does not state clearly intention to develop this feature and need more human information.
+    2. Provide a short reasoning (1-2 sentences).
+    3. If any related regulation/article is relevant, mention it concisely.
 
     Based on all input, respond strictly in JSON **with exactly these keys**:
     "classification": "Yes" | "No" | "Maybe",
     "reasoning": "1-2 sentence reasoning",
     "related_regulation": "main law or article name"
-
-    - Do not create lists or nested objects. Combine all reasoning into one string.
+     
+    Do not create lists or nested objects. Combine all reasoning into one string.
     """
     messages = [
         {"role": "system", "content": "You are a compliance classifier."},
@@ -206,66 +174,71 @@ def classify_stage(entities: str, feature_desc: str, regulation_context: str):
     return chat_with_ollama(messages)
 
 # ---------------------- Example Usage ----------------------
+# Remove or guard the following lines so they do not run on import
 # dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
-dataset_file_path = "/Users/chery/Downloads/features_dataset.xlsx"
-df = pd.read_excel(dataset_file_path)
-reasoning_list = []
-regulation_list = []
+# df = pd.read_excel(dataset_file_path)
+# reasoning_list = []
+# regulation_list = []
 
 if __name__ == "__main__":
-    for row in df.itertuples():
-        feature = {
-            "feature_name": row.feature_name,
-            "feature_description": row.feature_description
-        }
+    dataset_file_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset.xlsx"
+    try:
+        df = pd.read_excel(dataset_file_path)
+        reasoning_list = []
+        regulation_list = []
+        for row in df.itertuples():
+            feature = {
+                "feature_name": row.feature_name,
+                "feature_description": row.feature_description
+            }
 
-        try:
-            # Step 1: Extract entities
-            entities = json.loads(extract_entities(feature["feature_name"], feature["feature_description"]))
-            print("\n--- Extracted Entities ---")
-            print(entities)
-
-            # Step 2: Search all laws for best match
-            regulation_results = retrieve_best_regulation_text(feature["feature_description"], entities, top_k=3)
-            if not regulation_results:
-                print("\n--- Regulation Context ---")
-                print("No relevant regulation found.")
-                regulation_context = ""
-                related_regulation = ""
-            else:
-                # combine top 3 collections’ texts
-                regulation_context = "\n\n".join(
-                    "\n\n".join(r["texts"]) for r in regulation_results
-                )
-                related_regulation = ", ".join(r["source_file"] for r in regulation_results)
-                            
-                print("\n--- Regulation Context ---")
-                print(f"Matched Law: {related_regulation}")
-                print(regulation_context[:1000], "...")  # print preview
-
-            # Step 3: Classification and Reasoning(Ollama)
-            classification = classify_stage(entities, feature["feature_description"], regulation_context)
-            print("\n--- Classification (Ollama) ---")
-            print(classification)
             try:
-                ollama_result = json.loads(classification)
-                if isinstance(ollama_result, list):
-                    final_result = ollama_result[0]  # take first item
-                else:
-                    final_result = ollama_result  # it's already a single object
-            except Exception:
-                final_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
-            reasoning_list.extend([final_result['reasoning']])
-            regulation_list.extend([final_result['related_regulation']])
-        except Exception as e:
-            print("Error:", e)
-            reasoning_list.append("Error during reasoning")
-            regulation_list.append("Error during reasoning")
-    
-    df['ollama_reasoning'] = reasoning_list
-    df['related_regulation'] = regulation_list
-    # output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
-    output_path = "/Users/chery/Downloads/features_dataset_with_ollama_reasoning.xlsx"
+                # Step 1: Extract entities
+                entities = json.loads(extract_entities(feature["feature_name"], feature["feature_description"]))
+                print("\n--- Extracted Entities ---")
+                print(entities)
 
-    df.to_excel(output_path, index=False)
-    print(f"Saved results to {output_path}")
+                # Step 2: Search all laws for best match
+                regulation_results = retrieve_best_regulation_text(feature["feature_description"], entities, top_k=3)
+                if not regulation_results:
+                    print("\n--- Regulation Context ---")
+                    print("No relevant regulation found.")
+                    regulation_context = ""
+                    related_regulation = ""
+                else:
+                    # combine top 3 collections’ texts
+                    regulation_context = "\n\n".join(
+                        "\n\n".join(r["texts"]) for r in regulation_results
+                    )
+                    related_regulation = ", ".join(r["source_file"] for r in regulation_results)
+                                
+                    print("\n--- Regulation Context ---")
+                    print(f"Matched Law: {related_regulation}")
+                    print(regulation_context[:1000], "...")  # print preview
+
+                # Step 3: Classification and Reasoning(Ollama)
+                classification = classify_stage(entities, regulation_context)
+                print("\n--- Classification (Ollama) ---")
+                print(classification)
+                try:
+                    ollama_result = json.loads(classification)
+                    if isinstance(ollama_result, list):
+                        final_result = ollama_result[0]  # take first item
+                    else:
+                        final_result = ollama_result  # it's already a single object
+                except Exception:
+                    final_result = {"classification": "Maybe", "reasoning": "Ollama output not valid JSON", "related_regulation": ""}
+                reasoning_list.extend([final_result['reasoning']])
+                regulation_list.extend([final_result['related_regulation']])
+            except Exception as e:
+                print("Error:", e)
+                reasoning_list.append("Error during reasoning")
+                regulation_list.append("Error during reasoning")
+        
+        df['ollama_reasoning'] = reasoning_list
+        df['related_regulation'] = regulation_list
+        output_path = "/Users/zerongpeh/Desktop/Y4S1/hackathon_documents/tiktok_dataset_with_ollama_reasoning.xlsx"
+        df.to_excel(output_path, index=False)
+        print(f"Saved results to {output_path}")
+    except Exception as e:
+        print("Error in example usage:", e)

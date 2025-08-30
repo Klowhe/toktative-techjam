@@ -10,28 +10,33 @@ qdrant_client = init_qdrant()
 
 # ---------------------- Main Query Loop ----------------------
 
-def retrieve_top_documents(query_text: str, source_file: str, top_k: int = 5):
+def retrieve_top_documents(query_text: str, source_file: str = None, top_k: int = 5):
     """
-    Given a query and a source file, embed the query and retrieve top-k similar documents.
+    Search all Qdrant collections for top-k similar documents, return best results.
+    If source_file is provided, use it as a hint, but always search all collections.
     """
-    collection_name = SOURCE_COLLECTION_MAP.get(source_file.lower())
-    if not collection_name:
-        raise ValueError(f"No Qdrant collection mapped for source file: {source_file}")
-
-    # 1. Generate embedding
     embedding = get_embedding(query_text)
+    best_results = []
+    best_score = -float('inf')
+    best_collection = None
 
-    # 2. Query Qdrant
-    top_docs = query_qdrant(qdrant_client, embedding, collection_name=collection_name, top_k=top_k)
+    # Search all collections
+    for sf, collection_name in SOURCE_COLLECTION_MAP.items():
+        top_docs = query_qdrant(qdrant_client, embedding, collection_name=collection_name, top_k=top_k)
+        if top_docs and top_docs[0].score > best_score:
+            best_score = top_docs[0].score
+            best_results = [
+                {
+                    "score": doc.score,
+                    "metadata": doc.payload,
+                    "collection": collection_name,
+                    "source_file": sf
+                }
+                for doc in top_docs
+            ]
+            best_collection = collection_name
 
-    # 3. Format results
-    results = []
-    for doc in top_docs:
-        results.append({
-            "score": doc.score,
-            "metadata": doc.payload
-        })
-    return results
+    return best_results
 
 # ---------------------- Extract text from top-k results ----------------------
 def extract_text_from_results(top_results):
