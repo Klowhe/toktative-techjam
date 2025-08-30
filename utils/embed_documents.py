@@ -1,54 +1,25 @@
 import json
 import requests
-from qdrant_client import QdrantClient
+from api.qdrant_api import init_qdrant
+from api.ollama_api import get_embedding
 from qdrant_client.http.models import PointStruct, VectorParams
+from config.collections import SOURCE_COLLECTION_MAP
 import os
-from dotenv import load_dotenv
 import uuid
 
-# ---------------------- Load Environment ----------------------
-load_dotenv()
-QDRANT_ENDPOINT = os.getenv("QDRANT_ENDPOINT")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-
-# ---------------------- Ollama Settings ----------------------
-OLLAMA_URL = "http://127.0.0.1:11434/api/embeddings"  # Ollama local embed endpoint
-OLLAMA_MODEL = "mxbai-embed-large"                     # Replace with your embedding model
 EMBED_DIM = 1024  # Must match your Ollama embedding model output dimension
 
-# ---------------------- Initialize Qdrant ----------------------
-qdrant_client = QdrantClient(
-    url=QDRANT_ENDPOINT,
-    api_key=QDRANT_API_KEY
-)
-
 # ---------------------- Load Chunks ----------------------
-with open("chunks_output.json", "r", encoding="utf-8") as f:
-    chunks = json.load(f)  # Expecting a list of (chunk_text, metadata) tuples
+# with open("chunks_output.json", "r", encoding="utf-8") as f:
+#     chunks = json.load(f)  # Expecting a list of (chunk_text, metadata) tuples
+data_folder = os.path.join(os.path.dirname(__file__), "..", "data")
+chunks_file = os.path.join(data_folder, "chunks_output.json")
 
-# ---------------------- Source to Collection Mapping ----------------------
-SOURCE_COLLECTION_MAP = {
-    "eu_dsa.pdf": "eu_regulation",
-    "fl_bill.pdf": "fl_regulation",
-    "utah_regulation_act.pdf": "ut_regulation",
-    "ncmec.pdf": "ncmec_regulation",
-    "ca_poksmaa.pdf": "ca_regulation"
-}
-
-# ---------------------- Helper Functions ----------------------
-
-def get_embedding(text: str) -> list:
-    """Get embedding from local Ollama server via HTTP."""
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": text
-    }
-    response = requests.post(f"{OLLAMA_URL}", json=payload)
-    response.raise_for_status()
-    return response.json()["embedding"]
+with open(chunks_file, "r", encoding="utf-8") as f:
+    chunks = json.load(f) 
 
 # ---------------------- Upload Chunks ----------------------
-
+qdrant_client = init_qdrant()
 # Keep track of collections already created in this run
 created_collections = set()
 
