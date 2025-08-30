@@ -331,10 +331,6 @@ function exportDetails(featureId) {
     ['Analysis Date', new Date(feature.created_at).toLocaleString()],
     ['Reasoning', feature.reasoning],
     ['Regulations', feature.regulations?.join('; ') || 'None'],
-    ['Business Impact', feature.business_impact],
-    ['Technical Complexity', feature.technical_complexity],
-    ['Rollout Timeline', feature.rollout_timeline],
-    ['Stakeholders', feature.stakeholders?.join('; ') || 'None'],
     ['Regions Affected', feature.regions_affected?.join('; ') || 'None']
   ].map(row => row.map(field => `"${field.replace(/"/g, '""')}"`).join(',')).join('\n');
   

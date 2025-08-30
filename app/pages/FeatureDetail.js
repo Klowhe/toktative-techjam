@@ -123,50 +123,12 @@ export function FeatureDetail({ featureId }) {
                   <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Regions Affected</label>
                   <p style="color: #1f2937; margin: 0;">${(feature.regions_affected && feature.regions_affected.length > 0) ? feature.regions_affected.join(', ') : 'Global'}</p>
                 </div>
-                
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">User Impact</label>
-                  <p style="color: #1f2937; margin: 0;">${feature.impact_assessment || 'Impact assessment pending'}</p>
-                </div>
-                
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Business Impact</label>
-                  <p style="color: #1f2937; margin: 0;">${feature.business_impact || 'Business impact analysis pending'}</p>
-                </div>
               </div>
             </div>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 1.5rem;">
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem;">
-              <h3 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.25rem; font-weight: 600;">Implementation Details</h3>
-              
-              <div style="display: grid; gap: 1rem;">
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Technical Complexity</label>
-                  <p style="color: #1f2937; margin: 0;">${feature.technical_complexity || 'Assessment pending'}</p>
-                </div>
-                
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Expected Timeline</label>
-                  <p style="color: #1f2937; margin: 0;">${feature.rollout_timeline || 'Timeline to be determined'}</p>
-                </div>
-                
-                <div>
-                  <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Stakeholders</label>
-                  <div style="display: flex; flex-wrap: wrap; gap: 0.375rem;">
-                    ${(feature.stakeholders && feature.stakeholders.length > 0) ? 
-                      feature.stakeholders.map(stakeholder => `
-                        <span style="display: inline-block; padding: 0.25rem 0.5rem; background: #f3f4f6; color: #374151; border-radius: 4px; font-size: 0.75rem;">
-                          ${stakeholder}
-                        </span>
-                      `).join('') : 
-                      '<span style="color: #6b7280; font-style: italic;">Stakeholders to be identified</span>'
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem;">
               <h3 style="color: #1f2937; margin: 0 0 1rem 0; font-size: 1.25rem; font-weight: 600;">Activity Log</h3>

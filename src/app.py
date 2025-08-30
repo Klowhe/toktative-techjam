@@ -13,6 +13,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import json
+import logging
+from logging.handlers import RotatingFileHandler
 
 # Load environment variables
 load_dotenv()
@@ -33,6 +35,28 @@ from rl.llama_reasoning_generation import extract_entities, retrieve_best_regula
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
+# Configure logging
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# File handler for general application logs
+file_handler = RotatingFileHandler('../backend.log', maxBytes=10240000, backupCount=10)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+app.logger.addHandler(file_handler)
+
+# File handler for API access logs
+api_handler = RotatingFileHandler('../api_access.log', maxBytes=10240000, backupCount=10)
+api_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(method)s %(url)s - %(status_code)s - %(response_time)s ms'
+))
+api_handler.setLevel(logging.INFO)
+
+app.logger.setLevel(logging.INFO)
+app.logger.info('GeoReg Compliance API startup')
+
 print("Backend AI modules loaded successfully")
 print(f"Environment variables loaded from .env file")
 print(f"Qdrant endpoint: {os.getenv('QDRANT_ENDPOINT', 'Not configured')}")
@@ -40,6 +64,7 @@ print(f"Qdrant endpoint: {os.getenv('QDRANT_ENDPOINT', 'Not configured')}")
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    app.logger.info("💚 Health check requested")
     return jsonify({
         "status": "healthy", 
         "backend_available": True,
@@ -58,10 +83,14 @@ def analyze_feature():
         "source_file": "eu_dsa.pdf" (optional, defaults to eu_dsa.pdf)
     }
     """
+    start_time = datetime.now()
     try:
         data = request.get_json()
         
+        app.logger.info(f"🚀 NEW ANALYSIS REQUEST - Title: {data.get('title', 'Unknown') if data else 'No data'}")
+        
         if not data:
+            app.logger.error("❌ No JSON payload provided")
             return jsonify({"error": "No JSON payload provided"}), 400
             
         title = data.get('title', '').strip()
@@ -70,32 +99,44 @@ def analyze_feature():
         source_file = data.get('source_file', 'eu_dsa.pdf')
         
         if not title or not description:
+            app.logger.error(f"❌ Missing required fields - Title: {bool(title)}, Description: {bool(description)}")
             return jsonify({"error": "Title and description are required"}), 400
             
         # Combine all text for analysis
         feature_desc = f"{title}\n{description}\n{prd_text}" if prd_text else f"{title}\n{description}"
+        
+        app.logger.info(f"📄 Feature description length: {len(feature_desc)} characters")
+        app.logger.info(f"📊 Source file: {source_file}")
 
         # Step 1: Extract entities
+        app.logger.info("🔍 Step 1: Extracting entities...")
         entities_json = extract_entities(title, description)
         try:
             entities = json.loads(entities_json)
+            app.logger.info(f"✅ Entities extracted: {list(entities.keys())}")
         except Exception:
             entities = {}
+            app.logger.warning("⚠️ Entity extraction failed, using empty entities")
 
         # Step 2: Retrieve best regulation text
+        app.logger.info("🔎 Step 2: Searching vector database for relevant regulations...")
         regulation_results = retrieve_best_regulation_text(description, entities, top_k=3)
         if not regulation_results:
             regulation_context = ""
             related_regulation = ""
             regions_affected = []
+            app.logger.warning("⚠️ No relevant regulations found in vector search")
         else:
             regulation_context = "\n\n".join(
                 "\n\n".join(r["texts"]) for r in regulation_results
             )
             related_regulation = ", ".join(r["source_file"] for r in regulation_results)
             regions_affected = [entities.get("location", "")] if entities.get("location", "") else []
+            app.logger.info(f"✅ Found {len(regulation_results)} relevant regulation sources: {related_regulation}")
+            app.logger.info(f"📝 Retrieved context length: {len(regulation_context)} characters")
 
         # Step 3: Classification and Reasoning (LLM)
+        app.logger.info("🤖 Step 3: Generating AI classification and reasoning...")
         classification_json = classify_stage(entities, regulation_context)
         try:
             classification = json.loads(classification_json)
@@ -108,21 +149,19 @@ def analyze_feature():
             "title": title,
             "description": description,
             "flag": classification.get("classification", "Maybe"),
-            "confidence": 0.85 if classification.get("classification", "Maybe") == "Yes" else 0.65,
             "reasoning": classification.get("reasoning", ""),
             "age": ", ".join(entities.get("age", [])) if isinstance(entities.get("age", []), list) else entities.get("age", ""),
             "related_regulation": classification.get("related_regulation", ""),
             "regulations": [classification.get("related_regulation", "")] if classification.get("related_regulation", "") else [],
             "regions_affected": regions_affected,
-            "created_at": datetime.now().isoformat(),
-            "review_status": "none",
-            "impact_assessment": f"Analysis suggests {classification.get('classification', 'Maybe').lower()} regulatory risk",
-            "business_impact": "Requires legal review for compliance",
-            "technical_complexity": "Medium - May require implementation changes",
-            "rollout_timeline": "4-6 weeks including compliance review",
-            "stakeholders": ["Legal Team", "Compliance", "Product Team"],
-            "risk_level": "High" if classification.get("classification", "Maybe") == "Yes" else "Medium" if classification.get("classification", "Maybe") == "Maybe" else "Low"
+            "created_at": datetime.now().isoformat()
         }
+
+        # Log successful completion
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds() * 1000
+        app.logger.info(f"✅ ANALYSIS COMPLETE - Classification: {result['flag']} - Duration: {duration:.0f}ms")
+        app.logger.info(f"📋 Final result: {result['title']} -> {result['flag']} ({len(result['reasoning'])} char reasoning)")
 
         return jsonify({
             "success": True,
@@ -132,6 +171,9 @@ def analyze_feature():
             "mode": "ai"
         })
     except Exception as e:
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds() * 1000
+        app.logger.error(f"❌ ANALYSIS FAILED - Duration: {duration:.0f}ms - Error: {str(e)}")
         print(f"Error in analyze_feature: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
@@ -146,13 +188,10 @@ def parse_analysis_response(response_text, title, description):
     # Determine flag based on response content
     if any(word in response_lower for word in ['violation', 'violates', 'non-compliant', 'illegal', 'prohibited']):
         flag = 'Yes'
-        confidence = 0.85
     elif any(word in response_lower for word in ['compliant', 'legal', 'allowed', 'permitted', 'no violation']):
         flag = 'No' 
-        confidence = 0.90
     else:
         flag = 'Maybe'
-        confidence = 0.65
         
     # Extract mentioned regulations (simple keyword matching)
     regulations = []
@@ -184,19 +223,11 @@ def parse_analysis_response(response_text, title, description):
         "title": title,
         "description": description,
         "flag": flag,
-        "confidence": confidence,
         "regulations": regulations,
         "reasoning": reasoning[:300] + "..." if len(reasoning) > 300 else reasoning,
         "age": age_group,
         "regions_affected": ["European Union"],
-        "created_at": datetime.now().isoformat(),
-        "review_status": "none",
-        "impact_assessment": f"Analysis suggests {flag.lower()} regulatory risk",
-        "business_impact": "Requires legal review for compliance",
-        "technical_complexity": "Medium - May require implementation changes",
-        "rollout_timeline": "4-6 weeks including compliance review",
-        "stakeholders": ["Legal Team", "Compliance", "Product Team"],
-        "risk_level": "High" if flag == "Yes" else "Medium" if flag == "Maybe" else "Low"
+        "created_at": datetime.now().isoformat()
     }
 
 @app.route('/api/parse', methods=['POST'])
@@ -441,8 +472,6 @@ def create_email_body(feature, raw_analysis):
             <div class="section">
                 <h2>Compliance Assessment</h2>
                 <p><span class="label">Regulatory Flag:</span><span class="value flag-{feature.get('flag', 'maybe').lower()}">{feature.get('flag', 'N/A')}</span></p>
-                <p><span class="label">Confidence Level:</span><span class="value">{round(feature.get('confidence', 0) * 100)}%</span></p>
-                <p><span class="label">Risk Level:</span><span class="value">{feature.get('risk_level', 'N/A')}</span></p>
                 <p><span class="label">Age Group:</span><span class="value">{feature.get('age', 'N/A')}</span></p>
             </div>
             
@@ -453,17 +482,9 @@ def create_email_body(feature, raw_analysis):
             </div>
             
             <div class="section">
-                <h2>Business Impact</h2>
-                <p><span class="label">Business Impact:</span><span class="value">{feature.get('business_impact', 'N/A')}</span></p>
-                <p><span class="label">Technical Complexity:</span><span class="value">{feature.get('technical_complexity', 'N/A')}</span></p>
-                <p><span class="label">Rollout Timeline:</span><span class="value">{feature.get('rollout_timeline', 'N/A')}</span></p>
-            </div>
-            
-            <div class="section">
                 <h2>Regulatory Context</h2>
                 <p><span class="label">Affected Regulations:</span><span class="value">{', '.join(feature.get('regulations', []) or ['None specified'])}</span></p>
                 <p><span class="label">Regions Affected:</span><span class="value">{', '.join(feature.get('regions_affected', []) or ['None specified'])}</span></p>
-                <p><span class="label">Stakeholders:</span><span class="value">{', '.join(feature.get('stakeholders', []) or ['None specified'])}</span></p>
             </div>
         </div>
         
